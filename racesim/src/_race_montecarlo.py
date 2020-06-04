@@ -47,8 +47,8 @@ class MonteCarlo(object):
         # --------------------------------------------------------------------------------------------------------------
 
         # determine number of SC phases (0 - 3) for the race
-        no_sc = random.choices(list(range(0, len(self.monte_carlo_pars["p_no_sc"]))),
-                               self.monte_carlo_pars["p_no_sc"])[0]
+        no_sc = random.choices(list(range(0, len(self.monte_carlo_pars["p_sc_quant"]))),
+                               self.monte_carlo_pars["p_sc_quant"])[0]
 
         if no_sc > 0:
             # p_sc_start is a list with 6 individual probabilities: [p_firstlap, p<20%, p<40%, p<60%, p<80%, p<100%]

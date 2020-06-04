@@ -19,7 +19,7 @@ assumption of a free track, i.e. without opponents. Therefore, it can be seen as
 Use the provided `requirements.txt` in the root directory of this repo, in order to install all required modules.\
 `pip3 install -r /path/to/requirements.txt`
 
-The code is tested with Python 3.7.6 on Windows 10 and 3.6.8 on Ubuntu 18.04.
+The code is tested with Python 3.8.3 on Windows 10 and 3.6.8 on Ubuntu 18.04.
 
 ### Solutions for possible installation problems (Windows)
 `cvxpy`, `cython` or any other package requires a `Visual C++ compiler` -> Download the build tools for Visual Studio
@@ -61,3 +61,8 @@ Please refer to our paper for further information:\
 Heilmeier, Graf, Lienkamp\
 A Race Simulation for Strategy Decisions in Circuit Motorsports\
 DOI: 10.1109/ITSC.2018.8570012
+
+# Related open-source repositories
+* Lap time simulation: https://github.com/TUMFTM/laptime-simulation
+* Race track database: https://github.com/TUMFTM/racetrack-database
+* Formula 1 timing database: https://github.com/TUMFTM/f1-timing-database

@@ -25,7 +25,7 @@ class Car(object):
                  "__drivetype",
                  "__p_failure",
                  "__t_pit_tirechange_add",
-                 "__pitstop_var_fisk_pars",
+                 "__t_pit_var_fisk_pars",
                  "__t_pit_tirechange_add_rand_mean",
                  "__m_fuel",
                  "__b_fuel_perlap",
@@ -51,12 +51,12 @@ class Car(object):
 
         # set pitstop related parameters
         self.t_pit_tirechange_add = car_pars["t_pit_tirechange_add"]    # [s] additional standstill time to change tires
-        self.pitstop_var_fisk_pars = car_pars["pitstop_var_fisk_pars"]  # fisk distribution parameters [c, loc, scale]
+        self.t_pit_var_fisk_pars = car_pars["t_pit_var_fisk_pars"]      # fisk distribution parameters [c, loc, scale]
         # [s] mean of the additional standstill time to change tires when considering random influences (i.e. fisk
         # sampling) -> used to limit range of fisk sampling
-        self.t_pit_tirechange_add_rand_mean = scipy.stats.fisk.mean(c=self.pitstop_var_fisk_pars[0],
-                                                                    loc=self.pitstop_var_fisk_pars[1],
-                                                                    scale=self.pitstop_var_fisk_pars[2])
+        self.t_pit_tirechange_add_rand_mean = scipy.stats.fisk.mean(c=self.t_pit_var_fisk_pars[0],
+                                                                    loc=self.t_pit_var_fisk_pars[1],
+                                                                    scale=self.t_pit_var_fisk_pars[2])
 
         # reduction of fuel/energy consumption under an FCY phase
         self.mult_consumption_sc = car_pars["mult_consumption_sc"]      # [-] multiplier for consumption under SC
@@ -126,13 +126,13 @@ class Car(object):
         self.__t_pit_tirechange_add = x
     t_pit_tirechange_add = property(__get_t_pit_tirechange_add, __set_t_pit_tirechange_add)
 
-    def __get_pitstop_var_fisk_pars(self) -> list: return self.__pitstop_var_fisk_pars
+    def __get_t_pit_var_fisk_pars(self) -> list: return self.__t_pit_var_fisk_pars
 
-    def __set_pitstop_var_fisk_pars(self, x: list) -> None:
+    def __set_t_pit_var_fisk_pars(self, x: list) -> None:
         if not len(x) == 3:
             raise ValueError("Length of required fisk parameters is 3, %i parameters were given!" % len(x))
-        self.__pitstop_var_fisk_pars = x
-    pitstop_var_fisk_pars = property(__get_pitstop_var_fisk_pars, __set_pitstop_var_fisk_pars)
+        self.__t_pit_var_fisk_pars = x
+    t_pit_var_fisk_pars = property(__get_t_pit_var_fisk_pars, __set_t_pit_var_fisk_pars)
 
     def __get_t_pit_tirechange_add_rand_mean(self) -> float: return self.__t_pit_tirechange_add_rand_mean
 
@@ -248,9 +248,9 @@ class Car(object):
             t_pit_tirechange_add = None
 
             while t_pit_tirechange_add is None or t_pit_tirechange_add > 3 * self.t_pit_tirechange_add_rand_mean:
-                t_pit_tirechange_add = scipy.stats.fisk.rvs(c=self.pitstop_var_fisk_pars[0],
-                                                            loc=self.pitstop_var_fisk_pars[1],
-                                                            scale=self.pitstop_var_fisk_pars[2])
+                t_pit_tirechange_add = scipy.stats.fisk.rvs(c=self.t_pit_var_fisk_pars[0],
+                                                            loc=self.t_pit_var_fisk_pars[1],
+                                                            scale=self.t_pit_var_fisk_pars[2])
 
             return t_pit_tirechange_min + t_pit_tirechange_add
 

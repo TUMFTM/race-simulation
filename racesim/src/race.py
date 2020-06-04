@@ -556,8 +556,8 @@ class Race(MonteCarlo, RaceAnalysis):
                 # add a random part for race start
                 if self.use_random:
                     self.laptimes[self.cur_lap, idx] += \
-                        random.gauss(self.drivers_list[idx].t_start_performance["mean"],
-                                     self.drivers_list[idx].t_start_performance["sigma"])
+                        random.gauss(self.drivers_list[idx].t_startperf["mean"],
+                                     self.drivers_list[idx].t_startperf["sigma"])
 
             # ----------------------------------------------------------------------------------------------------------
             # DRS ------------------------------------------------------------------------------------------------------

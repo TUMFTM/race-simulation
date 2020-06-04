@@ -55,9 +55,9 @@ def import_pars(use_print: bool, race_pars_file: str, mcs_pars_file: str) -> dic
     p_accident = json.loads(parser.get('SEASON_%i' % season_tmp, 'p_accident'))
     p_failure = json.loads(parser.get('SEASON_%i' % season_tmp, 'p_failure'))
     p_fcy_phases = json.loads(parser.get('ALL_SEASONS', 'p_fcy_phases'))
-    pitstop_var_fisk_pars = json.loads(parser.get('ALL_SEASONS', 'pitstop_var_fisk_pars'))
-    t_driver_sigma = json.loads(parser.get('ALL_SEASONS', 't_driver_sigma'))
-    t_start_performance = json.loads(parser.get('ALL_SEASONS', 't_start_performance'))
+    t_pit_var_fisk_pars = json.loads(parser.get('ALL_SEASONS', 't_pit_var_fisk_pars'))
+    t_lap_var_sigma = json.loads(parser.get('ALL_SEASONS', 't_lap_var_sigma'))
+    t_startperf = json.loads(parser.get('ALL_SEASONS', 't_startperf'))
 
     # add MCS parameters to the correct driver and car parameters ------------------------------------------------------
     for initials in pars_in["driver_pars"]:
@@ -65,20 +65,20 @@ def import_pars(use_print: bool, race_pars_file: str, mcs_pars_file: str) -> dic
         pars_in["driver_pars"][initials]["p_accident"] = p_accident[name_tmp]
 
         # use "unknown" driver if desired driver is not included in the start performance data
-        if name_tmp in t_driver_sigma:
-            pars_in["driver_pars"][initials]["t_driver_sigma"] = t_driver_sigma[name_tmp]
+        if name_tmp in t_lap_var_sigma:
+            pars_in["driver_pars"][initials]["t_lap_var_sigma"] = t_lap_var_sigma[name_tmp]
         else:
-            pars_in["driver_pars"][initials]["t_driver_sigma"] = t_driver_sigma["unknown"]
+            pars_in["driver_pars"][initials]["t_lap_var_sigma"] = t_lap_var_sigma["unknown"]
 
         # use "unknown" driver if desired driver is not included in the start performance data
-        if name_tmp in t_start_performance:
-            pars_in["driver_pars"][initials]["t_start_performance"] = t_start_performance[name_tmp]
+        if name_tmp in t_startperf:
+            pars_in["driver_pars"][initials]["t_startperf"] = t_startperf[name_tmp]
         else:
-            pars_in["driver_pars"][initials]["t_start_performance"] = t_start_performance["unknown"]
+            pars_in["driver_pars"][initials]["t_startperf"] = t_startperf["unknown"]
 
     for team in pars_in["car_pars"]:
         pars_in["car_pars"][team]["p_failure"] = p_failure[team]
-        pars_in["car_pars"][team]["pitstop_var_fisk_pars"] = pitstop_var_fisk_pars[team]
+        pars_in["car_pars"][team]["t_pit_var_fisk_pars"] = t_pit_var_fisk_pars[team]
 
     for param in p_fcy_phases:
         pars_in["monte_carlo_pars"][param] = p_fcy_phases[param]

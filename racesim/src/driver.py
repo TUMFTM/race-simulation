@@ -31,8 +31,8 @@ class Driver(object):
                  "__car",
                  "__tireset_pars",
                  "__t_teamorder",
-                 "__t_driver_sigma",
-                 "__t_start_performance",
+                 "__t_lap_var_sigma",
+                 "__t_startperf",
                  "__vel_max",
                  "__p_accident",
                  "__lap_influences")
@@ -48,12 +48,12 @@ class Driver(object):
         self.initials = driver_pars["initials"]                 # driver initials, e.g. VET
         self.team = driver_pars["team"]                         # team of the driver, e.g. Ferrari
         self.t_driver = driver_pars["t_driver"]                 # [s] time to add due to driver skills
-        self.t_driver_sigma = driver_pars["t_driver_sigma"]     # [s] sigma of gaussian distribution
+        self.t_lap_var_sigma = driver_pars["t_lap_var_sigma"]   # [s] sigma of gaussian distribution
         self.t_teamorder = driver_pars["t_teamorder"]           # [s] teamorder time modifier
         self.strategy_info = driver_pars["strategy_info"]       # list with inlaps, compounds, tire ages and refueling
         self.p_grid = driver_pars["p_grid"]                     # [-] position in starting grid
         self.tireset_pars = tireset_pars                        # tireset parameters for all used compounds
-        self.t_start_performance = driver_pars["t_start_performance"]  # [s] {"mean", "sigma"} of gaussian distribution
+        self.t_startperf = driver_pars["t_startperf"]           # [s] {"mean", "sigma"} of gaussian distribution
         self.vel_max = driver_pars["vel_max"]                   # [km/h] Max. race speed trap velocity of driver
         self.p_accident = driver_pars["p_accident"]             # [-] accident probability of driver
         self.lap_influences = {}                                # set empty dict to show that no lap is influenced
@@ -103,13 +103,13 @@ class Driver(object):
         self.__t_driver = x
     t_driver = property(__get_t_driver, __set_t_driver)
 
-    def __get_t_driver_sigma(self) -> float: return self.__t_driver_sigma
+    def __get_t_lap_var_sigma(self) -> float: return self.__t_lap_var_sigma
 
-    def __set_t_driver_sigma(self, x: float) -> None:
+    def __set_t_lap_var_sigma(self, x: float) -> None:
         if not 0.0 <= x < 2.0:
             raise ValueError("Unreasonable value!", x)
-        self.__t_driver_sigma = x
-    t_driver_sigma = property(__get_t_driver_sigma, __set_t_driver_sigma)
+        self.__t_lap_var_sigma = x
+    t_lap_var_sigma = property(__get_t_lap_var_sigma, __set_t_lap_var_sigma)
 
     def __get_strategy_info(self) -> List[List]: return self.__strategy_info
     def __set_strategy_info(self, x: List[List]) -> None: self.__strategy_info = x
@@ -135,9 +135,9 @@ class Driver(object):
     def __set_t_teamorder(self, x: float) -> None: self.__t_teamorder = x
     t_teamorder = property(__get_t_teamorder, __set_t_teamorder)
 
-    def __get_t_start_performance(self) -> dict: return self.__t_start_performance
-    def __set_t_start_performance(self, x: dict) -> None: self.__t_start_performance = x
-    t_start_performance = property(__get_t_start_performance, __set_t_start_performance)
+    def __get_t_startperf(self) -> dict: return self.__t_startperf
+    def __set_t_startperf(self, x: dict) -> None: self.__t_startperf = x
+    t_startperf = property(__get_t_startperf, __set_t_startperf)
 
     def __get_vel_max(self) -> float: return self.__vel_max
     def __set_vel_max(self, x: float) -> None: self.__vel_max = x
@@ -163,7 +163,7 @@ class Driver(object):
         if use_random:
             return (self.car.t_add_car(t_lap_sens_mass=t_lap_sens_mass)
                     + self.t_driver
-                    + random.gauss(0.0, self.t_driver_sigma))
+                    + random.gauss(0.0, self.t_lap_var_sigma))
         else:
             return (self.car.t_add_car(t_lap_sens_mass=t_lap_sens_mass)
                     + self.t_driver)
