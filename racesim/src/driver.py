@@ -1,6 +1,5 @@
 from racesim.src.combustioncar import CombustionCar
 from racesim.src.electriccar import ElectricCar
-from racesim.src.car import Car
 from typing import List
 import random
 
