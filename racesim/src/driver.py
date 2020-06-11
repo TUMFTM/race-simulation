@@ -123,8 +123,8 @@ class Driver(object):
         self.__p_grid = x
     p_grid = property(__get_p_grid, __set_p_grid)
 
-    def __get_car(self) -> Car: return self.__car
-    def __set_car(self, x: Car) -> None: self.__car = x
+    def __get_car(self) -> CombustionCar or ElectricCar: return self.__car
+    def __set_car(self, x: CombustionCar or ElectricCar) -> None: self.__car = x
     car = property(__get_car, __set_car)
 
     def __get_tireset_pars(self) -> dict: return self.__tireset_pars
@@ -155,12 +155,12 @@ class Driver(object):
     # METHODS ----------------------------------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
 
-    def calc_basic_timeloss(self, use_random: bool, t_lap_sens_mass: float) -> float:
+    def calc_basic_timeloss(self, use_prob_infl: bool, t_lap_sens_mass: float) -> float:
         """
         Calculation of the basic time loss without regarding the race situation.
         """
 
-        if use_random:
+        if use_prob_infl:
             return (self.car.t_add_car(t_lap_sens_mass=t_lap_sens_mass)
                     + self.t_driver
                     + random.gauss(0.0, self.t_lap_var_sigma))

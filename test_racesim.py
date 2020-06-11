@@ -6,9 +6,10 @@ import numpy as np
 
 def test_racesim():
     # user input
-    race_pars_file_ = "pars_YasMarina_2017.ini"
+    race_pars_file_ = "pars_Spielberg_2019.ini"
     mcs_pars_file_ = 'pars_mcs.ini'
-    sim_opts_ = {"use_random": False,
+    sim_opts_ = {"use_prob_infl": False,
+                 "create_rand_events": False,
                  "no_bunches": 1,
                  "no_races_per_bunch": 1,
                  "no_workers": 1,
@@ -23,12 +24,12 @@ def test_racesim():
 
     # testing
     repo_path_ = os.path.dirname(os.path.abspath(__file__))
-    target_race_path_ = os.path.join(repo_path_, ".github", "testobjects", "testobj_racesim_YasMarina_2017.pkl")
+    target_race_path_ = os.path.join(repo_path_, ".github", "testobjects", "testobj_racesim_Spielberg_2019.pkl")
 
     with open(target_race_path_, 'rb') as fh:
         target_race = pickle.load(fh)
 
-    assert np.allclose(target_race.racetimes, result_objects[0].racetimes)
+    assert np.allclose(target_race.racetimes, result_objects[0].racetimes, equal_nan=True)
 
 
 # testing --------------------------------------------------------------------------------------------------------------

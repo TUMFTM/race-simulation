@@ -104,15 +104,15 @@ class CombustionCar(Car):
 
         return Car.t_add_car(self) + self.m_fuel * kwargs["t_lap_sens_mass"]
 
-    def t_add_pit_standstill(self, t_pit_tirechange_min: float, use_random: bool, **kwargs) -> float:
+    def t_add_pit_standstill(self, t_pit_tirechange_min: float, use_prob_infl: bool, **kwargs) -> float:
         """
-        Return pit standstill time (including a random part if use_random is True) for tire change and refueling.
+        Return pit standstill time (including a random part if use_prob_infl is True) for tire change and refueling.
         """
 
         # team dependent standstill time for tire change
         t_pit_standstill = Car.t_add_pit_standstill(self,
                                                     t_pit_tirechange_min=t_pit_tirechange_min,
-                                                    use_random=use_random)
+                                                    use_prob_infl=use_prob_infl)
 
         # fuel dependent standstill time
         if self.t_pit_refuel_perkg is not None:

@@ -11,9 +11,10 @@ def test_racesim():
     np.random.seed(2)
 
     # user input
-    race_pars_file_ = "pars_YasMarina_2017.ini"
+    race_pars_file_ = "pars_Spielberg_2019.ini"
     mcs_pars_file_ = 'pars_mcs.ini'
-    sim_opts_ = {"use_random": True,
+    sim_opts_ = {"use_prob_infl": True,
+                 "create_rand_events": True,
                  "no_bunches": 1,
                  "no_races_per_bunch": 1,
                  "no_workers": 1,
@@ -28,7 +29,7 @@ def test_racesim():
 
     # testing
     repo_path_ = os.path.dirname(os.path.abspath(__file__))
-    target_race_path_ = os.path.join(repo_path_, ".github", "testobjects", "testobj_racesim_random_YasMarina_2017.pkl")
+    target_race_path_ = os.path.join(repo_path_, ".github", "testobjects", "testobj_racesim_random_Spielberg_2019.pkl")
 
     with open(target_race_path_, 'rb') as fh:
         target_race = pickle.load(fh)

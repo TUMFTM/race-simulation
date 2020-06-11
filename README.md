@@ -19,7 +19,7 @@ assumption of a free track, i.e. without opponents. Therefore, it can be seen as
 Use the provided `requirements.txt` in the root directory of this repo, in order to install all required modules.\
 `pip3 install -r /path/to/requirements.txt`
 
-The code is tested with Python 3.8.3 on Windows 10 and 3.6.8 on Ubuntu 18.04.
+The code is developed with Python 3.8 on Windows 10 and tested with Python 3.8 on Ubuntu.
 
 ### Solutions for possible installation problems (Windows)
 `cvxpy`, `cython` or any other package requires a `Visual C++ compiler` -> Download the build tools for Visual Studio
@@ -49,12 +49,18 @@ are contained in `/racesim_basic/input/parameters`.
 # Running the race simulation
 If the requirements are installed on the system, follow these steps:
 
-* `Step 1`: You have to adjust a given or create a new parameter file (.ini) for the race to simulate. The parameter files
-are contained in `/racesim/input/parameters`.
+* `Step 1`: You have to adjust a given or create a new parameter file (.ini) for the race to simulate. The parameter
+files are contained in `/racesim/input/parameters`.
 * `Step 2:` Check the user inputs in the lower part of `main_racesim.py`.
 * `Step 3:` Execute `main_racesim.py` to start the race simulation.
 
 ![Race simulation real time output for the Yas Marina racetrack](racesim/racesim_yasmarina.png)
+
+### Contained parameter files
+We included exemplary parameter files for the 121 Formula 1 races in the seasons 2014 - 2019. They were automatically
+created on the basis of our Formula 1 timing database (link is below). The program used for this was developed by
+Marcel Faist as part of his master's thesis within the project. Please keep in mind that an exact reproduction of the
+real races in the simulation is practically impossible.
 
 ### Detailed description of the race simulation
 Please refer to our paper for further information:\

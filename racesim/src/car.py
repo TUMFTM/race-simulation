@@ -237,12 +237,12 @@ class Car(object):
 
         return self.tireset.t_add_tireset() + self.t_car
 
-    def t_add_pit_standstill(self, t_pit_tirechange_min: float, use_random: bool, **kwargs) -> float:
+    def t_add_pit_standstill(self, t_pit_tirechange_min: float, use_prob_infl: bool, **kwargs) -> float:
         """
-        Return pit standstill time (including a random part if use_random is True) for tire change.
+        Return pit standstill time (including a random part if use_prob_infl is True) for tire change.
         """
 
-        if use_random:
+        if use_prob_infl:
             # use fisk distribution for pit stop time, limit value to a senseful range of 3 * mean (fisk distribution
             # sometimes leads to very large values)
             t_pit_tirechange_add = None

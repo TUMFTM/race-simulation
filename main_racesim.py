@@ -97,7 +97,8 @@ def main(sim_opts: dict, race_pars_file: str, mcs_pars_file: str) -> list:
         while no_races_left > 0:
             # simulate race
             tmp_race_handle = race_handle(pars_in=pars_in,
-                                          use_random=sim_opts['use_random'])
+                                          use_prob_infl=sim_opts['use_prob_infl'],
+                                          create_rand_events=sim_opts['create_rand_events'])
             no_races_left -= 1
 
             # CASE 1: result is valid
@@ -146,7 +147,8 @@ def main(sim_opts: dict, race_pars_file: str, mcs_pars_file: str) -> list:
                 while len(job_queue) <= max_no_concurrent_jobs and no_races_left > 0:
                     job_queue.append(executor.submit(race_handle,
                                                      pars_in,
-                                                     sim_opts['use_random']))
+                                                     sim_opts['use_prob_infl'],
+                                                     sim_opts['create_rand_events']))
                     no_races_left -= 1
 
                 # collect results as soon as they are available
@@ -253,12 +255,15 @@ if __name__ == '__main__':
     # ------------------------------------------------------------------------------------------------------------------
 
     # set race parameter file names
-    race_pars_file_ = 'pars_YasMarina_2017.ini'
+    race_pars_file_ = 'pars_Spielberg_2019.ini'
     mcs_pars_file_ = 'pars_mcs.ini'
 
     # set simulation options
-    # use_random:           use randomness within the race simulation -> random events (FCY phases and retirements) will
-    #                       be created automatically if the according entries in the parameter file contain empty lists
+    # use_prob_infl:        activates probabilistic influences within the race simulation -> lap times, pit stop
+    #                       durations, race start performance
+    # create_rand_events:   activates the random creation of FCY (full course yellow) phases and retirements in the race
+    #                       simulation -> they will only be created if the according entries in the parameter file
+    #                       contain empty lists, otherwise the file entries are used
     # no_bunches:           number of bunches of race simulations (to be able to determine error plots, should be set 1
     #                       in most cases)
     # no_races_per_bunch:   number of (valid) races to simulate per bunch
@@ -267,7 +272,8 @@ if __name__ == '__main__':
     # use_print:            set if prints to console should be used or not (does not suppress hints/warnings)
     # use_print_result:     set if result should be printed to console or not
     # use_plot:             set if plotting should be used or not
-    sim_opts_ = {"use_random": False,
+    sim_opts_ = {"use_prob_infl": False,
+                 "create_rand_events": False,
                  "no_bunches": 1,
                  "no_races_per_bunch": 1,
                  "no_workers": 1,

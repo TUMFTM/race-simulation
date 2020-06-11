@@ -47,7 +47,7 @@ class Race(MonteCarlo, RaceAnalysis):
                  "__no_drivers",            # number of drivers attending the race
                  "__track",                 # track object
                  # general parameters/options --------------------------------------------------------------------------
-                 "__use_random",            # boolean to set if random event simulation should be used
+                 "__use_prob_infl",         # boolean to set if probabilistic influences should be activated
                  "__race_pars",             # contains race parameters such as t_overtake, drs_window, ...
                  "__monte_carlo_pars",      # parameters used for monte carlo method
                  "__pit_driver_idxs",       # create list for pitting drivers (set by checking their inlaps)
@@ -82,7 +82,8 @@ class Race(MonteCarlo, RaceAnalysis):
                  car_pars: dict,
                  tireset_pars: dict,
                  track_pars: dict,
-                 use_random: bool,
+                 use_prob_infl: bool,
+                 create_rand_events: bool,
                  monte_carlo_pars: dict,
                  event_pars: dict) -> None:
 
@@ -116,7 +117,7 @@ class Race(MonteCarlo, RaceAnalysis):
         self.cur_lap = 0
 
         # set general parameters
-        self.use_random = use_random
+        self.use_prob_infl = use_prob_infl
         self.race_pars = race_pars
         self.race_pars['drs_act_lap'] = [self.race_pars["drs_allow_lap"]] * self.no_drivers
         self.monte_carlo_pars = monte_carlo_pars
@@ -179,14 +180,14 @@ class Race(MonteCarlo, RaceAnalysis):
                              " %.1f laps (SC) and %.1f laps (VSC) is enforced between two phases)!"
                              % (self.monte_carlo_pars["min_dist_sc"], self.monte_carlo_pars["min_dist_vsc"]))
 
-        # create random events such as accidents or car failures if use_random is True and empty lists were given in the
-        # parameter file (such events must be determined in front of the actual race simulation)
-        if self.use_random and type(self.fcy_data["phases"]) is list and len(self.fcy_data["phases"]) == 0:
+        # create random events such as accidents or car failures if create_rand_events is True and empty lists were
+        # given in the parameter file (such events must be determined in front of the actual race simulation)
+        if create_rand_events and type(self.fcy_data["phases"]) is list and len(self.fcy_data["phases"]) == 0:
             create_fcyphases = True
         else:
             create_fcyphases = False
 
-        if self.use_random \
+        if create_rand_events \
                 and type(self.retire_data["retirements"]) is list and len(self.retire_data["retirements"]) == 0:
             create_retirements = True
         else:
@@ -250,9 +251,9 @@ class Race(MonteCarlo, RaceAnalysis):
     def __set_track(self, x: Track) -> None: self.__track = x
     track = property(__get_track, __set_track)
 
-    def __get_use_random(self) -> bool: return self.__use_random
-    def __set_use_random(self, x: bool) -> None: self.__use_random = x
-    use_random = property(__get_use_random, __set_use_random)
+    def __get_use_prob_infl(self) -> bool: return self.__use_prob_infl
+    def __set_use_prob_infl(self, x: bool) -> None: self.__use_prob_infl = x
+    use_prob_infl = property(__get_use_prob_infl, __set_use_prob_infl)
 
     def __get_race_pars(self) -> dict: return self.__race_pars
     def __set_race_pars(self, x: dict) -> None: self.__race_pars = x
@@ -491,7 +492,7 @@ class Race(MonteCarlo, RaceAnalysis):
 
             # calculate timeloss due to pitstop
             timeloss_standstill = self.drivers_list[idx_driver].car. \
-                t_add_pit_standstill(use_random=self.use_random,
+                t_add_pit_standstill(use_prob_infl=self.use_prob_infl,
                                      m_fuel_add=rel_pitstop[3],
                                      t_pit_tirechange_min=self.track.t_pit_tirechange_min)
 
@@ -506,7 +507,7 @@ class Race(MonteCarlo, RaceAnalysis):
 
             # calculate timeloss due to pitstop
             timeloss_standstill = self.drivers_list[idx_driver].car. \
-                t_add_pit_standstill(use_random=self.use_random,
+                t_add_pit_standstill(use_prob_infl=self.use_prob_infl,
                                      energy_add=rel_pitstop[3],
                                      t_pit_tirechange_min=self.track.t_pit_tirechange_min)
 
@@ -538,7 +539,7 @@ class Race(MonteCarlo, RaceAnalysis):
             # ----------------------------------------------------------------------------------------------------------
 
             self.laptimes[self.cur_lap, idx] += \
-                self.drivers_list[idx].calc_basic_timeloss(use_random=self.use_random,
+                self.drivers_list[idx].calc_basic_timeloss(use_prob_infl=self.use_prob_infl,
                                                            t_lap_sens_mass=self.track.t_lap_sens_mass)
 
             # ----------------------------------------------------------------------------------------------------------
@@ -554,7 +555,7 @@ class Race(MonteCarlo, RaceAnalysis):
                 self.laptimes[self.cur_lap, idx] += (self.drivers_list[idx].p_grid - 1) * self.track.t_loss_pergridpos
 
                 # add a random part for race start
-                if self.use_random:
+                if self.use_prob_infl:
                     self.laptimes[self.cur_lap, idx] += \
                         random.gauss(self.drivers_list[idx].t_startperf["mean"],
                                      self.drivers_list[idx].t_startperf["sigma"])
