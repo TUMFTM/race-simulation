@@ -4,9 +4,7 @@ import time
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D  # noqa
 import racesim_basic
-import configparser
 import os
-import json
 import pkg_resources
 import helper_funcs.src.calc_tire_degradation
 
@@ -27,90 +25,44 @@ Attention:
   basically optimizes the stint lengths to minimize solely the tire degradation time losses.
 """
 
+# ----------------------------------------------------------------------------------------------------------------------
+# CHECK PYTHON DEPENDENCIES --------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------
+
+# get repo path
+repo_path_ = os.path.dirname(os.path.abspath(__file__))
+
+# read dependencies from requirements.txt
+requirements_path = os.path.join(repo_path_, 'requirements.txt')
+dependencies = []
+
+with open(requirements_path, 'r') as fh:
+    line = fh.readline()
+
+    while line:
+        dependencies.append(line.rstrip())
+        line = fh.readline()
+
+# check dependencies
+pkg_resources.require(dependencies)
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 # MAIN FUNCTION --------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------
 
-def main(sim_opts: dict) -> None:
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # CHECK PYTHON DEPENDENCIES ----------------------------------------------------------------------------------------
-    # ------------------------------------------------------------------------------------------------------------------
-
-    # get repo path
-    repo_path = os.path.dirname(os.path.abspath(__file__))
-
-    # read dependencies from requirements.txt
-    requirements_path = os.path.join(repo_path, 'requirements.txt')
-    dependencies = []
-
-    with open(requirements_path, 'r') as fh:
-        line = fh.readline()
-
-        while line:
-            dependencies.append(line.rstrip())
-            line = fh.readline()
-
-    # check dependencies
-    pkg_resources.require(dependencies)
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # INITIALIZATION ---------------------------------------------------------------------------------------------------
-    # ------------------------------------------------------------------------------------------------------------------
-
-    # set paths
-    repo_path = os.path.dirname(os.path.abspath(__file__))
-    par_file_path = os.path.join(repo_path, "racesim_basic", "input", "parameters", sim_opts["pars_file"])
-
-    # load parameters
-    parser = configparser.ConfigParser()
-
-    if not parser.read(par_file_path):
-        raise ValueError('Specified config file does not exist or is empty!')
-
-    driver_pars = json.loads(parser.get('DRIVER_PARS', 'driver_pars'))
-    track_pars = json.loads(parser.get('TRACK_PARS', 'track_pars'))
-    race_pars = json.loads(parser.get('RACE_PARS', 'race_pars'))
-
-    # determine some additionally required variables
-    available_compounds = list(driver_pars["tire_pars"].keys())
-    available_compounds.remove('tire_deg_model')
-    if driver_pars["drivetype"] == "combustion" and driver_pars["b_fuel_perlap"] is None:
-        # calculate approximate fuel consumption per lap
-        driver_pars["b_fuel_perlap"] = driver_pars["m_fuel_init"] / race_pars["tot_no_laps"]
-        if sim_opts["use_print"]:
-            print("INFO: Fuel consumption was automatically determined to %.2fkg/lap!" % driver_pars["b_fuel_perlap"])
-
-    # check user input
-    if driver_pars['tire_pars']['tire_deg_model'] != 'lin' and sim_opts["use_qp"]:
-        raise ValueError('QP is only available for a linear tire degradation model!')
-
-    if sim_opts["use_plot"] and sim_opts["use_qp"]:
-        print('INFO: Plotting will be reduced since the derived data from the QP is much less than for full factorial!')
-
-    if not 0 <= sim_opts["min_no_pitstops"] < sim_opts["max_no_pitstops"]:
-        raise ValueError('Minimum number of pit stops must be less than maximum number of pit stops and greater than'
-                         ' 0!')
-
-    if sim_opts["min_no_pitstops"] == 0 and sim_opts["enforce_diff_compounds"]:
-        print('WARNING: Different compounds cannot be enforced if number of pitstops is zero!')
-
-    if sim_opts["use_qp"] and sim_opts["fcy_phases"]:
-        print("WARNING: FCY phases cannot be considered when using the quadratic optimization, they will therefore be"
-              " neglected!")
+def main(sim_opts: dict, pars_in: dict) -> tuple:
 
     # ------------------------------------------------------------------------------------------------------------------
     # CREATE ALL POSSIBLE TIRE COMPOUND COMBINATIONS -------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
 
-    t_start = time.perf_counter()
     strategy_combinations = {}
 
     for cur_no_pitstops in range(sim_opts["min_no_pitstops"], sim_opts["max_no_pitstops"] + 1):
         # combinations used since the chosen order of tire compounds does not matter for the final race time
-        strategy_combinations[cur_no_pitstops] = list(itertools.combinations_with_replacement(available_compounds,
-                                                                                              r=cur_no_pitstops + 1))
+        strategy_combinations[cur_no_pitstops] = \
+            list(itertools.combinations_with_replacement(pars_in['available_compounds'], r=cur_no_pitstops + 1))
 
         # remove strategy combinations using only a single tire compound if enforced
         if sim_opts["enforce_diff_compounds"]:
@@ -118,9 +70,17 @@ def main(sim_opts: dict) -> None:
                                                       if not len(set(strat_tmp)) == 1]
 
         # remove strategy combinations that do not include the starting tire compound if enforced
-        if driver_pars["start_compound"] is not None:
+        if sim_opts["start_compound"] is not None:
             strategy_combinations[cur_no_pitstops] = [strat_tmp for strat_tmp in strategy_combinations[cur_no_pitstops]
-                                                      if driver_pars["start_compound"] in strat_tmp]
+                                                      if sim_opts["start_compound"] in strat_tmp]
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # INITIALIZATION ---------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+
+    exit_qp = False             # used to exit QP loops in the case that no solution was found in the MIQP
+    t_race_fastest = {}         # t_race_fastest = {cur_no_pitstops: [(strategy), racetime]}
+    t_race_full_factorial = {}
 
     # ------------------------------------------------------------------------------------------------------------------
     # CALCULATE RACE TIMES (QP) ----------------------------------------------------------------------------------------
@@ -128,8 +88,6 @@ def main(sim_opts: dict) -> None:
 
     if sim_opts["use_qp"]:
         # iterate over all desired numbers of pitstops
-        t_race_fastest = {}  # t_race_fastest = {cur_no_pitstops: [(strategy), racetime]}
-
         for cur_no_pitstops in range(sim_opts["min_no_pitstops"], sim_opts["max_no_pitstops"] + 1):
             # iterate over all possible strategy combinations with cur_no_pitstops
             t_race_fastest[cur_no_pitstops] = []
@@ -141,9 +99,16 @@ def main(sim_opts: dict) -> None:
                                               [tires_start_age] * len(cur_comp_strat))]  # [[compound, age], ...]
 
                 opt_stint_lengths = racesim_basic.src.opt_strategy_basic.\
-                    opt_strategy_basic(tot_no_laps=race_pars['tot_no_laps'],
-                                       tire_pars=driver_pars["tire_pars"],
+                    opt_strategy_basic(tot_no_laps=pars_in['race_pars']['tot_no_laps'],
+                                       tire_pars=pars_in['driver_pars']["tire_pars"],
                                        tires=tires)
+
+                # if no solution was found exit QP and use full factorial instead
+                if opt_stint_lengths is None:
+                    print("INFO: Could not find a solution using the QP, moving to full factorial instead!")
+                    exit_qp = True
+                    t_race_fastest = {}  # reset value
+                    break
 
                 # set up strategy and calculate final race time
                 laps_tmp = 0
@@ -159,53 +124,56 @@ def main(sim_opts: dict) -> None:
                     laps_tmp += opt_stint_lengths[i]
 
                 t_race_tmp = racesim_basic.src.calc_racetimes_basic.\
-                    calc_racetimes_basic(t_base=driver_pars["t_base"],
-                                         tot_no_laps=race_pars["tot_no_laps"],
-                                         t_lap_sens_mass=track_pars["t_lap_sens_mass"],
-                                         t_pitdrive_inlap=track_pars["t_pitdrive_inlap"],
-                                         t_pitdrive_outlap=track_pars["t_pitdrive_outlap"],
-                                         t_pitdrive_inlap_fcy=track_pars["t_pitdrive_inlap_fcy"],
-                                         t_pitdrive_outlap_fcy=track_pars["t_pitdrive_outlap_fcy"],
-                                         t_pitdrive_inlap_sc=track_pars["t_pitdrive_inlap_sc"],
-                                         t_pitdrive_outlap_sc=track_pars["t_pitdrive_outlap_sc"],
-                                         t_pit_tirechange=driver_pars["t_pit_tirechange"],
-                                         pits_aft_finishline=track_pars["pits_aft_finishline"],
-                                         tire_pars=driver_pars["tire_pars"],
-                                         p_grid=driver_pars["p_grid"],
-                                         t_loss_pergridpos=track_pars["t_loss_pergridpos"],
-                                         t_loss_firstlap=track_pars["t_loss_firstlap"],
+                    calc_racetimes_basic(t_base=pars_in['driver_pars']["t_base"],
+                                         tot_no_laps=pars_in['race_pars']["tot_no_laps"],
+                                         t_lap_sens_mass=pars_in['track_pars']["t_lap_sens_mass"],
+                                         t_pitdrive_inlap=pars_in['track_pars']["t_pitdrive_inlap"],
+                                         t_pitdrive_outlap=pars_in['track_pars']["t_pitdrive_outlap"],
+                                         t_pitdrive_inlap_fcy=pars_in['track_pars']["t_pitdrive_inlap_fcy"],
+                                         t_pitdrive_outlap_fcy=pars_in['track_pars']["t_pitdrive_outlap_fcy"],
+                                         t_pitdrive_inlap_sc=pars_in['track_pars']["t_pitdrive_inlap_sc"],
+                                         t_pitdrive_outlap_sc=pars_in['track_pars']["t_pitdrive_outlap_sc"],
+                                         t_pit_tirechange=pars_in['driver_pars']["t_pit_tirechange"],
+                                         pits_aft_finishline=pars_in['track_pars']["pits_aft_finishline"],
+                                         tire_pars=pars_in['driver_pars']["tire_pars"],
+                                         p_grid=pars_in['driver_pars']["p_grid"],
+                                         t_loss_pergridpos=pars_in['track_pars']["t_loss_pergridpos"],
+                                         t_loss_firstlap=pars_in['track_pars']["t_loss_firstlap"],
                                          strategy=strategy,
-                                         drivetype=driver_pars["drivetype"],
-                                         m_fuel_init=driver_pars["m_fuel_init"],
-                                         b_fuel_perlap=driver_pars["b_fuel_perlap"],
-                                         t_pit_refuel_perkg=driver_pars["t_pit_refuel_perkg"],
-                                         t_pit_charge_perkwh=driver_pars["t_pit_charge_perkwh"],
+                                         drivetype=pars_in['driver_pars']["drivetype"],
+                                         m_fuel_init=pars_in['driver_pars']["m_fuel_init"],
+                                         b_fuel_perlap=pars_in['driver_pars']["b_fuel_perlap"],
+                                         t_pit_refuel_perkg=pars_in['driver_pars']["t_pit_refuel_perkg"],
+                                         t_pit_charge_perkwh=pars_in['driver_pars']["t_pit_charge_perkwh"],
                                          fcy_phases=None,
-                                         t_lap_sc=track_pars["t_lap_sc"],
-                                         t_lap_fcy=track_pars["t_lap_fcy"])[0][-1]
+                                         t_lap_sc=pars_in['track_pars']["t_lap_sc"],
+                                         t_lap_fcy=pars_in['track_pars']["t_lap_fcy"])[0][-1]
 
                 t_race_fastest[cur_no_pitstops].append([tuple(strategy_stints), t_race_tmp])
+
+            # if no solution was found exit QP and use full factorial instead
+            if exit_qp:
+                break
 
     # ------------------------------------------------------------------------------------------------------------------
     # POSTPROCESSING (QP) ----------------------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
 
-        # sort t_race_fastest by race times
-        for cur_no_pitstops in t_race_fastest:
-            t_race_fastest[cur_no_pitstops] = sorted(t_race_fastest[cur_no_pitstops], key=lambda x: x[1])
+        if not exit_qp:
+            # sort t_race_fastest by race times
+            for cur_no_pitstops in t_race_fastest:
+                t_race_fastest[cur_no_pitstops] = sorted(t_race_fastest[cur_no_pitstops], key=lambda x: x[1])
 
     # ------------------------------------------------------------------------------------------------------------------
     # CALCULATE RACE TIMES (FULL FACTORIAL) ----------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
 
-    else:
+    if not sim_opts["use_qp"] or exit_qp:
         # iterate over all desired numbers of pitstops
-        t_race_full_factorial = {}
-
         for cur_no_pitstops in range(sim_opts["min_no_pitstops"], sim_opts["max_no_pitstops"] + 1):
             # create n-D array fitting for cur_no_pitstops: first dimension = first stop, second dimension = second stop
             # etc
-            t_race_template = np.zeros((race_pars["tot_no_laps"] - 1,) * cur_no_pitstops)
+            t_race_template = np.zeros((pars_in['race_pars']["tot_no_laps"] - 1,) * cur_no_pitstops)
 
             # copy template for every possible strategy with cur_no_pitstops
             t_race_full_factorial[cur_no_pitstops] = {cur_comp_strat: np.copy(t_race_template)
@@ -216,7 +184,8 @@ def main(sim_opts: dict) -> None:
 
                 # iterate over all inlap combinations with cur_no_pitstops to calculate race time when doing the stop in
                 # the according laps (tot_no_laps - 1 is not included as race must not be finished in pit)
-                for idxs_cur_inlaps in itertools.product(range(race_pars["tot_no_laps"] - 1), repeat=cur_no_pitstops):
+                for idxs_cur_inlaps in itertools.product(range(pars_in['race_pars']["tot_no_laps"] - 1),
+                                                         repeat=cur_no_pitstops):
                     # check if inlaps appear in a rising order
                     if not all([x < y for x, y in zip(idxs_cur_inlaps, idxs_cur_inlaps[1:])]):
                         t_race_full_factorial[cur_no_pitstops][cur_comp_strat][idxs_cur_inlaps] = np.nan
@@ -232,42 +201,49 @@ def main(sim_opts: dict) -> None:
                                          0.0])                      # [kg or kWh] refueling during pit stop
 
                     t_race_full_factorial[cur_no_pitstops][cur_comp_strat][idxs_cur_inlaps] = racesim_basic.src. \
-                        calc_racetimes_basic.calc_racetimes_basic(t_base=driver_pars["t_base"],
-                                                                  tot_no_laps=race_pars["tot_no_laps"],
-                                                                  t_lap_sens_mass=track_pars["t_lap_sens_mass"],
-                                                                  t_pitdrive_inlap=track_pars["t_pitdrive_inlap"],
-                                                                  t_pitdrive_outlap=track_pars["t_pitdrive_outlap"],
-                                                                  t_pitdrive_inlap_fcy=track_pars[
+                        calc_racetimes_basic.calc_racetimes_basic(t_base=pars_in['driver_pars']["t_base"],
+                                                                  tot_no_laps=pars_in['race_pars']["tot_no_laps"],
+                                                                  t_lap_sens_mass=pars_in['track_pars'][
+                                                                      "t_lap_sens_mass"],
+                                                                  t_pitdrive_inlap=pars_in['track_pars'][
+                                                                      "t_pitdrive_inlap"],
+                                                                  t_pitdrive_outlap=pars_in['track_pars'][
+                                                                      "t_pitdrive_outlap"],
+                                                                  t_pitdrive_inlap_fcy=pars_in['track_pars'][
                                                                       "t_pitdrive_inlap_fcy"],
-                                                                  t_pitdrive_outlap_fcy=track_pars[
+                                                                  t_pitdrive_outlap_fcy=pars_in['track_pars'][
                                                                       "t_pitdrive_outlap_fcy"],
-                                                                  t_pitdrive_inlap_sc=track_pars["t_pitdrive_inlap_sc"],
-                                                                  t_pitdrive_outlap_sc=track_pars[
+                                                                  t_pitdrive_inlap_sc=pars_in['track_pars'][
+                                                                      "t_pitdrive_inlap_sc"],
+                                                                  t_pitdrive_outlap_sc=pars_in['track_pars'][
                                                                       "t_pitdrive_outlap_sc"],
-                                                                  pits_aft_finishline=track_pars["pits_aft_finishline"],
-                                                                  t_pit_tirechange=driver_pars["t_pit_tirechange"],
-                                                                  tire_pars=driver_pars["tire_pars"],
-                                                                  p_grid=driver_pars["p_grid"],
-                                                                  t_loss_pergridpos=track_pars["t_loss_pergridpos"],
-                                                                  t_loss_firstlap=track_pars["t_loss_firstlap"],
+                                                                  pits_aft_finishline=pars_in['track_pars'][
+                                                                      "pits_aft_finishline"],
+                                                                  t_pit_tirechange=pars_in['driver_pars'][
+                                                                      "t_pit_tirechange"],
+                                                                  tire_pars=pars_in['driver_pars']["tire_pars"],
+                                                                  p_grid=pars_in['driver_pars']["p_grid"],
+                                                                  t_loss_pergridpos=pars_in['track_pars'][
+                                                                      "t_loss_pergridpos"],
+                                                                  t_loss_firstlap=pars_in['track_pars'][
+                                                                      "t_loss_firstlap"],
                                                                   strategy=strategy,
-                                                                  drivetype=driver_pars["drivetype"],
-                                                                  m_fuel_init=driver_pars["m_fuel_init"],
-                                                                  b_fuel_perlap=driver_pars["b_fuel_perlap"],
-                                                                  t_pit_refuel_perkg=driver_pars["t_pit_refuel_perkg"],
-                                                                  t_pit_charge_perkwh=driver_pars[
+                                                                  drivetype=pars_in['driver_pars']["drivetype"],
+                                                                  m_fuel_init=pars_in['driver_pars']["m_fuel_init"],
+                                                                  b_fuel_perlap=pars_in['driver_pars']["b_fuel_perlap"],
+                                                                  t_pit_refuel_perkg=pars_in['driver_pars'][
+                                                                      "t_pit_refuel_perkg"],
+                                                                  t_pit_charge_perkwh=pars_in['driver_pars'][
                                                                       "t_pit_charge_perkwh"],
                                                                   fcy_phases=sim_opts["fcy_phases"],
-                                                                  t_lap_sc=track_pars["t_lap_sc"],
-                                                                  t_lap_fcy=track_pars["t_lap_fcy"])[0][-1]
+                                                                  t_lap_sc=pars_in['track_pars']["t_lap_sc"],
+                                                                  t_lap_fcy=pars_in['track_pars']["t_lap_fcy"])[0][-1]
 
     # ------------------------------------------------------------------------------------------------------------------
     # POSTPROCESSING (FULL FACTORIAL) ----------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
 
         # find fastest stint lengths for every compound combination
-        t_race_fastest = {}
-
         for cur_no_pitstops in t_race_full_factorial:
             t_race_fastest[cur_no_pitstops] = []
 
@@ -286,7 +262,7 @@ def main(sim_opts: dict) -> None:
                     opt_stint_lengths.append(opt_inlap_idxs[i] + 1 - laps_tmp)  # inlap = idx + 1
                     laps_tmp += opt_stint_lengths[-1]
 
-                opt_stint_lengths.append(race_pars['tot_no_laps'] - laps_tmp)
+                opt_stint_lengths.append(pars_in['race_pars']['tot_no_laps'] - laps_tmp)
 
                 # set together strategy stints [stint_length, compound, stint_length, compound, ...]
                 strategy_stints = []
@@ -304,116 +280,7 @@ def main(sim_opts: dict) -> None:
         for cur_no_pitstops in t_race_fastest:
             t_race_fastest[cur_no_pitstops] = sorted(t_race_fastest[cur_no_pitstops], key=lambda x: x[1])
 
-    # ------------------------------------------------------------------------------------------------------------------
-    # PRINT RESULTS ----------------------------------------------------------------------------------------------------
-    # ------------------------------------------------------------------------------------------------------------------
-
-    # print calculation time
-    if sim_opts["use_print"]:
-        print('INFO: Calculation time: %.3fs' % (time.perf_counter() - t_start))
-
-    # print resulting order and stint lengths (pit stop laps do not make sense as other orders are equally fast)
-    if sim_opts["use_print_result"]:
-        print('RESULT: Printing stint lengths instead of inlaps in the following because stint order is not relevant!')
-
-        for cur_no_pitstops, strategies_cur_no_pitstops in t_race_fastest.items():
-            print('RESULT: Race times for %i stop strategies:' % cur_no_pitstops)
-
-            for strategy in strategies_cur_no_pitstops:
-                # set together print string
-                print_string = ''
-
-                for entry in strategy[0]:
-                    print_string += str(entry) + ' '
-
-                print(print_string + ': %.3fs' % strategy[1])
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # PLOTTING ---------------------------------------------------------------------------------------------------------
-    # ------------------------------------------------------------------------------------------------------------------
-
-    if sim_opts["use_plot"]:
-        # basic tire degradation plot ----------------------------------------------------------------------------------
-        stint_length = 25
-
-        t_c1_degr = helper_funcs.src.calc_tire_degradation.\
-            calc_tire_degradation(tire_age_start=0,
-                                  stint_length=stint_length,
-                                  compound=available_compounds[0],
-                                  tire_pars=driver_pars["tire_pars"])
-
-        t_c2_degr = helper_funcs.src.calc_tire_degradation.\
-            calc_tire_degradation(tire_age_start=0,
-                                  stint_length=stint_length,
-                                  compound=available_compounds[1],
-                                  tire_pars=driver_pars["tire_pars"])
-
-        t_c3_degr = helper_funcs.src.calc_tire_degradation.\
-            calc_tire_degradation(tire_age_start=0,
-                                  stint_length=stint_length,
-                                  compound=available_compounds[2],
-                                  tire_pars=driver_pars["tire_pars"])
-
-        # plot
-        fig = plt.figure()
-        ax = fig.gca()
-
-        laps_tmp = np.arange(1, stint_length + 1)
-        ax.plot(laps_tmp, t_c1_degr)
-        ax.plot(laps_tmp, t_c2_degr, 'x-')
-        ax.plot(laps_tmp, t_c3_degr, 'o-')
-
-        x_min = 0
-        x_max = laps_tmp[-1] - 1
-        ax.set_xlim(left=x_min, right=x_max)
-        plt.hlines((t_c1_degr[0], t_c2_degr[0], t_c3_degr[0]), x_min, x_max, color='grey', linestyle='--')
-
-        # set title and axis labels
-        plt.legend(available_compounds)
-        plt.title('Tire degradation plot')
-        plt.ylabel('(Relative) Time loss in s/lap')
-        plt.xlabel('Tire age in laps')
-
-        plt.grid()
-        plt.show()
-
-        # plot 1 stop strategies ---------------------------------------------------------------------------------------
-        if not sim_opts["use_qp"]:
-            for cur_comp_strat in t_race_full_factorial[1]:
-                fig = plt.figure()
-                ax = fig.gca()
-
-                laps_tmp = np.arange(1, race_pars["tot_no_laps"] + 1)
-                # -1 as race must not be finished in pit
-                ax.plot(laps_tmp[:-1], t_race_full_factorial[1][cur_comp_strat])
-
-                t_race_min = np.amin(t_race_full_factorial[1][cur_comp_strat])
-                plt.title('Current strategy: ' + str(cur_comp_strat) + '\nMinimum race time: %.3fs' % t_race_min)
-                plt.xlabel('Lap of pitstop')
-                plt.ylabel('Race time in s')
-
-                plt.grid()
-                plt.show()
-
-        # plot 2 stop strategies ---------------------------------------------------------------------------------------
-            for cur_comp_strat in t_race_full_factorial[2]:
-                fig = plt.figure()
-                ax = fig.gca(projection='3d')
-
-                laps_tmp = np.arange(1, race_pars["tot_no_laps"] + 1)
-                x, y = np.meshgrid(laps_tmp[:-1], laps_tmp[:-1])  # -1 as race must not be finished in pit
-                ax.plot_wireframe(x, y, t_race_full_factorial[2][cur_comp_strat])
-
-                t_race_min = np.nanmin(t_race_full_factorial[2][cur_comp_strat])
-                plt.title('Current strategy: ' + str(cur_comp_strat) + '\nMinimum race time: %.3fs' % t_race_min)
-                plt.ylabel('Lap of first pitstop')
-                plt.xlabel('Lap of second pitstop')
-                ax.set_zlabel('Race time in s')
-
-                plt.show()
-
-            if sim_opts["max_no_pitstops"] > 2:
-                print('INFO: Plotting of strategies with more than 2 stops is not possible!')
+    return t_race_fastest, t_race_full_factorial
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -426,9 +293,12 @@ if __name__ == '__main__':
     # USER INPUT -------------------------------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
 
-    # pars_file:                set the parameter file
+    # set race parameter file name
+    race_pars_file_ = 'pars_YasMarina_2017.ini'
+
     # min_no_pitstops:          set minimum number of pitstops (mostly 1)
     # max_no_pitstops:          set maximum number of pitstops
+    # start_compound:           enforce that the given start compound is included (set None if it is free)
     # enforce_diff_compounds:   enforce that at least two different compounds must be used in the race
     # use_qp:                   activate quadratic optim. to determine the optimal inlaps -> requires linear model, is
     #                           fast, reduced plotting
@@ -437,22 +307,146 @@ if __name__ == '__main__':
     #                           -> start and stop race progress must be in range [0.0, tot_no_laps] (e.g. if SC comes
     #                           at 30% of the first lap and leaves at the end of lap 2 it would be [[0.3, 2.0, 'SC']])
     #                           -> valid FCY phase types are 'SC' and 'VSC'
+
+    sim_opts_ = {"min_no_pitstops": 1,
+                 "max_no_pitstops": 2,
+                 "start_compound": None,
+                 "enforce_diff_compounds": True,
+                 "use_qp": False,
+                 "fcy_phases": None}
+
     # use_plot:                 set if plotting should be used or not (will be shown up to max. 2 stops)
     # use_print:                set if prints to console should be used or not (does not suppress hints/warnings)
     # use_print_result:         set if result should be printed to console or not
 
-    sim_opts_ = {"pars_file": "pars_YasMarina_2017.ini",
-                 "min_no_pitstops": 1,
-                 "max_no_pitstops": 2,
-                 "enforce_diff_compounds": True,
-                 "use_qp": False,
-                 "fcy_phases": None,
-                 "use_plot": False,
-                 "use_print": True,
-                 "use_print_result": True}
+    use_plot = False
+    use_print = True
+    use_print_result = True
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # INITIALIZATION ---------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+
+    # load parameters
+    pars_in_ = racesim_basic.src.import_pars.import_pars(use_print=use_print, race_pars_file=race_pars_file_)
+
+    # check parameters
+    racesim_basic.src.check_pars.check_pars(sim_opts=sim_opts_, pars_in=pars_in_, use_plot=use_plot)
 
     # ------------------------------------------------------------------------------------------------------------------
     # SIMULATION CALL --------------------------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
 
-    main(sim_opts=sim_opts_)
+    t_start = time.perf_counter()
+
+    t_race_fastest_, t_race_full_factorial_ = main(sim_opts=sim_opts_, pars_in=pars_in_)
+
+    if use_print:
+        print('INFO: Calculation time: %.3fs' % (time.perf_counter() - t_start))
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # PRINT RESULTS ----------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+
+    # print resulting order and stint lengths (pit stop laps do not make sense as other orders are equally fast)
+    if use_print_result:
+        print('RESULT: Printing stint lengths instead of inlaps in the following because stint order is not relevant!')
+
+        for cur_no_pitstops_, strategies_cur_no_pitstops in t_race_fastest_.items():
+            print('RESULT: Race times for %i stop strategies:' % cur_no_pitstops_)
+
+            for strategy_ in strategies_cur_no_pitstops:
+                # set together print string
+                print_string = ''
+
+                for entry in strategy_[0]:
+                    print_string += str(entry) + ' '
+
+                print(print_string + ': %.3fs' % strategy_[1])
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # PLOTTING ---------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+
+    if use_plot:
+        # basic tire degradation plot ----------------------------------------------------------------------------------
+        stint_length = 25
+
+        t_c1_degr = helper_funcs.src.calc_tire_degradation. \
+            calc_tire_degradation(tire_age_start=0,
+                                  stint_length=stint_length,
+                                  compound=pars_in_['available_compounds'][0],
+                                  tire_pars=pars_in_['driver_pars']["tire_pars"])
+
+        t_c2_degr = helper_funcs.src.calc_tire_degradation. \
+            calc_tire_degradation(tire_age_start=0,
+                                  stint_length=stint_length,
+                                  compound=pars_in_['available_compounds'][1],
+                                  tire_pars=pars_in_['driver_pars']["tire_pars"])
+
+        t_c3_degr = helper_funcs.src.calc_tire_degradation. \
+            calc_tire_degradation(tire_age_start=0,
+                                  stint_length=stint_length,
+                                  compound=pars_in_['available_compounds'][2],
+                                  tire_pars=pars_in_['driver_pars']["tire_pars"])
+
+        # plot
+        fig = plt.figure()
+        ax = fig.gca()
+
+        laps_tmp_ = np.arange(1, stint_length + 1)
+        ax.plot(laps_tmp_, t_c1_degr)
+        ax.plot(laps_tmp_, t_c2_degr, 'x-')
+        ax.plot(laps_tmp_, t_c3_degr, 'o-')
+
+        x_min = 0
+        x_max = laps_tmp_[-1] - 1
+        ax.set_xlim(left=x_min, right=x_max)
+        plt.hlines((t_c1_degr[0], t_c2_degr[0], t_c3_degr[0]), x_min, x_max, color='grey', linestyle='--')
+
+        # set title and axis labels
+        plt.legend(pars_in_['available_compounds'])
+        plt.title('Tire degradation plot')
+        plt.ylabel('(Relative) Time loss in s/lap')
+        plt.xlabel('Tire age in laps')
+
+        plt.grid()
+        plt.show()
+
+        # plot 1 stop strategies ---------------------------------------------------------------------------------------
+        if not sim_opts_["use_qp"]:
+            for cur_comp_strat_ in t_race_full_factorial_[1]:
+                fig = plt.figure()
+                ax = fig.gca()
+
+                laps_tmp_ = np.arange(1, pars_in_['race_pars']["tot_no_laps"] + 1)
+                # -1 as race must not be finished in pit
+                ax.plot(laps_tmp_[:-1], t_race_full_factorial_[1][cur_comp_strat_])
+
+                t_race_min = np.amin(t_race_full_factorial_[1][cur_comp_strat_])
+                plt.title('Current strategy: ' + str(cur_comp_strat_) + '\nMinimum race time: %.3fs' % t_race_min)
+                plt.xlabel('Lap of pitstop')
+                plt.ylabel('Race time in s')
+
+                plt.grid()
+                plt.show()
+
+            # plot 2 stop strategies -----------------------------------------------------------------------------------
+            for cur_comp_strat_ in t_race_full_factorial_[2]:
+                fig = plt.figure()
+                ax = fig.gca(projection='3d')
+
+                laps_tmp_ = np.arange(1, pars_in_['race_pars']["tot_no_laps"] + 1)
+                x_, y_ = np.meshgrid(laps_tmp_[:-1], laps_tmp_[:-1])  # -1 as race must not be finished in pit
+                ax.plot_wireframe(x_, y_, t_race_full_factorial_[2][cur_comp_strat_])
+
+                t_race_min = np.nanmin(t_race_full_factorial_[2][cur_comp_strat_])
+                plt.title('Current strategy: ' + str(cur_comp_strat_) + '\nMinimum race time: %.3fs' % t_race_min)
+                plt.ylabel('Lap of first pitstop')
+                plt.xlabel('Lap of second pitstop')
+                ax.set_zlabel('Race time in s')
+
+                plt.show()
+
+            if sim_opts_["max_no_pitstops"] > 2:
+                print('INFO: Plotting of strategies with more than 2 stops is not possible!')

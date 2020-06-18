@@ -110,8 +110,13 @@ def opt_strategy_basic(tot_no_laps: int,
     # ------------------------------------------------------------------------------------------------------------------
 
     # ECOS_BB is able to handle mixed integer quadratic problems
-    prob.solve(solver='ECOS_BB')
-    stint_lengths = np.round(x.value).astype(np.int)
+    tmp = prob.solve(solver='ECOS_BB')
+
+    if not np.isinf(tmp):
+        stint_lengths = np.round(x.value).astype(np.int)
+    else:
+        # no solution found
+        stint_lengths = None
 
     return stint_lengths
 

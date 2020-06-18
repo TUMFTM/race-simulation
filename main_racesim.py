@@ -20,6 +20,27 @@ This file includes the main function as well as required plot functions. The scr
 the simulation is located at the bottom. Have a look there to insert the required user parameters.
 """
 
+# ----------------------------------------------------------------------------------------------------------------------
+# CHECK PYTHON DEPENDENCIES --------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------
+
+# get repo path
+repo_path_ = os.path.dirname(os.path.abspath(__file__))
+
+# read dependencies from requirements.txt
+requirements_path = os.path.join(repo_path_, 'requirements.txt')
+dependencies = []
+
+with open(requirements_path, 'r') as fh:
+    line = fh.readline()
+
+    while line:
+        dependencies.append(line.rstrip())
+        line = fh.readline()
+
+# check dependencies
+pkg_resources.require(dependencies)
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 # MAIN FUNCTION --------------------------------------------------------------------------------------------------------
@@ -28,29 +49,11 @@ the simulation is located at the bottom. Have a look there to insert the require
 def main(sim_opts: dict, race_pars_file: str, mcs_pars_file: str) -> list:
 
     # ------------------------------------------------------------------------------------------------------------------
-    # CHECK PYTHON DEPENDENCIES ----------------------------------------------------------------------------------------
+    # INITIALIZATION ---------------------------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
 
     # get repo path
     repo_path = os.path.dirname(os.path.abspath(__file__))
-
-    # read dependencies from requirements.txt
-    requirements_path = os.path.join(repo_path, 'requirements.txt')
-    dependencies = []
-
-    with open(requirements_path, 'r') as fh:
-        line = fh.readline()
-
-        while line:
-            dependencies.append(line.rstrip())
-            line = fh.readline()
-
-    # check dependencies
-    pkg_resources.require(dependencies)
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # INITIALIZATION ---------------------------------------------------------------------------------------------------
-    # ------------------------------------------------------------------------------------------------------------------
 
     # create output folders (if not existing)
     output_path = os.path.join(repo_path, "racesim", "output")
