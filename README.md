@@ -62,11 +62,17 @@ created on the basis of our Formula 1 timing database (link is below). The progr
 Marcel Faist as part of his master's thesis within the project. Please keep in mind that an exact reproduction of the
 real races in the simulation is practically impossible.
 
-### Detailed description of the race simulation
+### Detailed description of the race simulation (deterministic parts)
 Please refer to our paper for further information:\
 Heilmeier, Graf, Lienkamp\
 A Race Simulation for Strategy Decisions in Circuit Motorsports\
 DOI: 10.1109/ITSC.2018.8570012
+
+### Detailed description of the race simulation (probabilistic effects and random events)
+Please refer to our paper for further information:\
+Heilmeier, Graf, Betz,Lienkamp\
+Application of Monte Carlo Methods to Consider Probabilistic Effects in a Race Simulation for Circuit Motorsport\
+DOI: 10.3390/app10124229
 
 # Related open-source repositories
 * Lap time simulation: https://github.com/TUMFTM/laptime-simulation

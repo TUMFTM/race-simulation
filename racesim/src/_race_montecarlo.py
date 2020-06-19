@@ -79,22 +79,15 @@ class MonteCarlo(object):
 
                 # assure that SC phase is started more than a lap before the end of the race -> after that it makes no
                 # more sense to send it on the track since drivers will not catch up until the end
-                if prog_start >= self.race_pars["tot_no_laps"] - 1.0:
+                if prog_start > self.race_pars["tot_no_laps"] - 1.0:
                     continue
 
-                # determine duration of SC phase -> fisk distribution
-                sc_dur = random.choices(list(range(1, len(self.monte_carlo_pars["p_sc_duration"]) + 1)),
-                                        self.monte_carlo_pars["p_sc_duration"])[0] + random.random()
+                # determine duration of SC phase
+                sc_dur = float(random.choices(list(range(1, len(self.monte_carlo_pars["p_sc_duration"]) + 1)),
+                                              self.monte_carlo_pars["p_sc_duration"])[0])
 
-                # keep duration in a senseful range (more than 8 laps usually leads to a race interruption, less than 2
-                # laps is usually handled with a VSC phase -> round() afterwards additionally changes the duration)
-                if sc_dur < 2.0:
-                    sc_dur = 2.0
-                elif sc_dur > 8.0:
-                    sc_dur = 8.0
-
-                # set stop race progress to a full lap for the SC (0 decimals inserted to obtain a float)
-                prog_stop = round(prog_start + sc_dur, 0)
+                # set stop race progress to a full lap for the SC -> floor since the durations are always over-estimated
+                prog_stop = float(math.floor(prog_start + sc_dur))
 
                 if prog_stop > self.race_pars["tot_no_laps"]:
                     prog_stop = float(self.race_pars["tot_no_laps"])
