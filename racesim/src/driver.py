@@ -29,6 +29,7 @@ class Driver(object):
                  "__p_grid",
                  "__car",
                  "__tireset_pars",
+                 "__avail_dry_compounds",
                  "__t_teamorder",
                  "__t_lap_var_sigma",
                  "__t_startperf",
@@ -52,6 +53,8 @@ class Driver(object):
         self.strategy_info = driver_pars["strategy_info"]       # list with inlaps, compounds, tire ages and refueling
         self.p_grid = driver_pars["p_grid"]                     # [-] position in starting grid
         self.tireset_pars = tireset_pars                        # tireset parameters for all used compounds
+        # extract available (i.e. parameterized) dry compounds of driver from tireset parameters
+        self.avail_dry_compounds = [x for x in self.tireset_pars if x in ["C1", "C2", "C3", "C4", "C5", "C6"]]
         self.t_startperf = driver_pars["t_startperf"]           # [s] {"mean", "sigma"} of gaussian distribution
         self.vel_max = driver_pars["vel_max"]                   # [km/h] Max. race speed trap velocity of driver
         self.p_accident = driver_pars["p_accident"]             # [-] accident probability of driver
@@ -129,6 +132,10 @@ class Driver(object):
     def __get_tireset_pars(self) -> dict: return self.__tireset_pars
     def __set_tireset_pars(self, x: dict) -> None: self.__tireset_pars = x
     tireset_pars = property(__get_tireset_pars, __set_tireset_pars)
+
+    def __get_avail_dry_compounds(self) -> list: return self.__avail_dry_compounds
+    def __set_avail_dry_compounds(self, x: list) -> None: self.__avail_dry_compounds = x
+    avail_dry_compounds = property(__get_avail_dry_compounds, __set_avail_dry_compounds)
 
     def __get_t_teamorder(self) -> float: return self.__t_teamorder
     def __set_t_teamorder(self, x: float) -> None: self.__t_teamorder = x

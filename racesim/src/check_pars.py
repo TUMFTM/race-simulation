@@ -18,6 +18,10 @@ def check_pars(sim_opts: dict, pars_in: dict) -> None:
     if sim_opts["no_bunches"] > 1 and sim_opts["no_races_per_bunch"] < 1000:
         raise ValueError("For the statistical analysis there should be at least 1,000 valid races per bunch!")
 
+    p_grids = [pars_in["driver_pars"][initials]["p_grid"] for initials in pars_in["driver_pars"]]
+    if not len(set(p_grids)) == len(p_grids):
+        raise ValueError("Grid positions are not unique!")
+
     if sim_opts["use_print"]:
         print("INFO: FCY phases for the race simulation were set as follows:",
               pars_in["event_pars"]["fcy_data"]["phases"])

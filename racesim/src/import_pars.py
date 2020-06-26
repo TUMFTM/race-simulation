@@ -4,8 +4,12 @@ import json
 
 
 def import_pars(use_print: bool, race_pars_file: str, mcs_pars_file: str) -> dict:
-    # get repo path
+
     repo_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # RACE SPECIFIC PARAMETER FILE -------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
 
     # load race parameter file -----------------------------------------------------------------------------------------
     if use_print:
@@ -26,8 +30,16 @@ def import_pars(use_print: bool, race_pars_file: str, mcs_pars_file: str) -> dic
     pars_in["driver_pars"] = json.loads(parser.get('DRIVER_PARS', 'driver_pars'))
     pars_in["event_pars"] = json.loads(parser.get('EVENT_PARS', 'event_pars'))
 
-    # perform sorting of FCY phases and retirements --------------------------------------------------------------------
+    # check for required pit stop parameters ---------------------------------------------------------------------------
+    if pars_in["track_pars"]["t_gap_overtake_vel"] is None:
+        print("WARNING: Parameter t_gap_overtake_vel is None, continuing with 0.0s!")
+        pars_in["track_pars"]["t_gap_overtake_vel"] = 0.0
 
+    if pars_in["track_pars"]["t_drseffect"] is None:
+        print("WARNING: Parameter t_drseffect is None, continuing with 0.0s!")
+        pars_in["track_pars"]["t_drseffect"] = 0.0
+
+    # perform sorting of FCY phases and retirements --------------------------------------------------------------------
     # check that we got a list of lists for FCY phases (further checks are performed later on)
     if any(True if type(x) is not list else False for x in pars_in["event_pars"]["fcy_data"]["phases"]):
         raise TypeError("FCY phases must be a list of lists!")
@@ -41,6 +53,10 @@ def import_pars(use_print: bool, race_pars_file: str, mcs_pars_file: str) -> dic
 
     # sort retirements by start
     pars_in["event_pars"]["retire_data"]["retirements"].sort(key=lambda x: x[1])
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # MCS PARAMETER FILE -----------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
 
     # load MCS parameter file ------------------------------------------------------------------------------------------
     if use_print:

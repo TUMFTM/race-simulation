@@ -744,7 +744,7 @@ class Race(MonteCarlo, RaceAnalysis):
 
         if np.any(bool_retire_new):
             # get indices of newly retired drivers
-            idxs_retired = np.nonzero(bool_retire_new)[0]
+            idxs_retired = np.flatnonzero(bool_retire_new)
 
             # sort idxs_retired by ascending progress and descending positions (i.e. worst driver first) such that
             # positions can be set in the correct order afterwards when going from back to front

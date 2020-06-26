@@ -91,7 +91,7 @@ class Track(object):
     def __get_t_gap_racepace(self) -> float: return self.__t_gap_racepace
 
     def __set_t_gap_racepace(self, x: float) -> None:
-        if not 0.0 <= x < 10.0:
+        if not -20.0 <= x < 10.0:
             raise ValueError("Unreasonable value!", x)
         self.__t_gap_racepace = x
     t_gap_racepace = property(__get_t_gap_racepace, __set_t_gap_racepace)
@@ -147,7 +147,7 @@ class Track(object):
     def __get_t_pitdrive_inlap_fcy(self) -> float: return self.__t_pitdrive_inlap_fcy
 
     def __set_t_pitdrive_inlap_fcy(self, x: float) -> None:
-        if not -5.0 < x < 30.0:
+        if not -15.0 < x < 30.0:
             raise ValueError("Unreasonable value!", x)
         self.__t_pitdrive_inlap_fcy = x
     t_pitdrive_inlap_fcy = property(__get_t_pitdrive_inlap_fcy, __set_t_pitdrive_inlap_fcy)
@@ -163,7 +163,7 @@ class Track(object):
     def __get_t_pitdrive_inlap_sc(self) -> float: return self.__t_pitdrive_inlap_sc
 
     def __set_t_pitdrive_inlap_sc(self, x: float) -> None:
-        if not -5.0 < x < 30.0:
+        if not -15.0 < x < 30.0:
             raise ValueError("Unreasonable value!", x)
         self.__t_pitdrive_inlap_sc = x
     t_pitdrive_inlap_sc = property(__get_t_pitdrive_inlap_sc, __set_t_pitdrive_inlap_sc)
@@ -207,7 +207,7 @@ class Track(object):
     def __get_t_gap_overtake_vel(self) -> float: return self.__t_gap_overtake_vel
 
     def __set_t_gap_overtake_vel(self, x: float) -> None:
-        if not -0.2 < x < 0.0:
+        if not -0.2 < x <= 0.0:
             raise ValueError("Unreasonable value!", x)
         self.__t_gap_overtake_vel = x
     t_gap_overtake_vel = property(__get_t_gap_overtake_vel, __set_t_gap_overtake_vel)
