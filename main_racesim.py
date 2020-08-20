@@ -31,12 +31,12 @@ repo_path_ = os.path.dirname(os.path.abspath(__file__))
 requirements_path = os.path.join(repo_path_, 'requirements.txt')
 dependencies = []
 
-with open(requirements_path, 'r') as fh:
-    line = fh.readline()
+with open(requirements_path, 'r') as fh_:
+    line = fh_.readline()
 
     while line:
         dependencies.append(line.rstrip())
-        line = fh.readline()
+        line = fh_.readline()
 
 # check dependencies
 pkg_resources.require(dependencies)
@@ -79,11 +79,8 @@ def main(sim_opts: dict, race_pars_file: str, mcs_pars_file: str) -> list:
     # SIMULATION -------------------------------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
 
-    # create list containing the simulated race objects with valid results
-    result_objects = []
-
-    # calculate total number of (valid) races to simulate
-    tot_no_races = sim_opts["no_bunches"] * sim_opts["no_races_per_bunch"]
+    # create list containing the simulated race object (single run) or dicts with valid results (multiple runs)
+    race_results = []
 
     # save start time for runtime calculation
     if sim_opts["use_print"]:
@@ -91,32 +88,32 @@ def main(sim_opts: dict, race_pars_file: str, mcs_pars_file: str) -> list:
     t_start = time.perf_counter()
 
     # iteration variables
-    no_races_left = tot_no_races    # counter for the number of races left for simulation
-    ctr_invalid = 0                 # counter for the number of simulated races marked as invalid
+    no_sim_runs_left = sim_opts["no_sim_runs"]  # counter for the number of races left for simulation
+    ctr_invalid = 0                             # counter for the number of simulated races marked as invalid
 
     # SINGLE PROCESS ---------------------------------------------------------------------------------------------------
     if sim_opts["no_workers"] == 1:
 
-        while no_races_left > 0:
+        while no_sim_runs_left > 0:
             # simulate race
             tmp_race_handle = race_handle(pars_in=pars_in,
                                           use_prob_infl=sim_opts['use_prob_infl'],
                                           create_rand_events=sim_opts['create_rand_events'])
-            no_races_left -= 1
+            no_sim_runs_left -= 1
 
             # CASE 1: result is valid
             if tmp_race_handle.result_status == 0:
                 # save race object for later evaluation (single race) or simple race results (MCS)
-                if tot_no_races > 1:
-                    result_objects.append(tmp_race_handle.get_race_results())
+                if sim_opts["no_sim_runs"] > 1:
+                    race_results.append(tmp_race_handle.get_race_results())
                 else:
-                    result_objects.append(tmp_race_handle)
+                    race_results.append(tmp_race_handle)
 
             # CASE 2: result is invalid
             else:
-                # increase no_races_left
+                # increase no_sim_runs_left
                 ctr_invalid += 1
-                no_races_left += 1
+                no_sim_runs_left += 1
 
                 # pickle race object for further analysis
                 if tmp_race_handle.result_status >= 10 or tmp_race_handle.result_status == -1:
@@ -129,8 +126,8 @@ def main(sim_opts: dict, race_pars_file: str, mcs_pars_file: str) -> list:
 
             # print progressbar
             if sim_opts["use_print"]:
-                helper_funcs.src.progressbar.progressbar(i=tot_no_races - no_races_left,
-                                                         i_total=tot_no_races,
+                helper_funcs.src.progressbar.progressbar(i=sim_opts["no_sim_runs"] - no_sim_runs_left,
+                                                         i_total=sim_opts["no_sim_runs"],
                                                          prefix="INFO: Simulation progress:")
 
     # MULTIPLE PROCESSES -----------------------------------------------------------------------------------------------
@@ -141,18 +138,18 @@ def main(sim_opts: dict, race_pars_file: str, mcs_pars_file: str) -> list:
         # create executor instance (pool of processes available for parallel calculations)
         with futures.ProcessPoolExecutor(max_workers=sim_opts["no_workers"]) as executor:
 
-            while no_races_left > 0:
+            while no_sim_runs_left > 0:
                 # reset job queue (list containing current simulation jobs)
                 job_queue = []
 
                 # submit simulations to the waiting queue of the executor instance as long as we have races left for
                 # simulation and the job queue is not full
-                while len(job_queue) <= max_no_concurrent_jobs and no_races_left > 0:
+                while len(job_queue) <= max_no_concurrent_jobs and no_sim_runs_left > 0:
                     job_queue.append(executor.submit(race_handle,
                                                      pars_in,
                                                      sim_opts['use_prob_infl'],
                                                      sim_opts['create_rand_events']))
-                    no_races_left -= 1
+                    no_sim_runs_left -= 1
 
                 # collect results as soon as they are available
                 for job_handle in futures.as_completed(job_queue):
@@ -161,16 +158,16 @@ def main(sim_opts: dict, race_pars_file: str, mcs_pars_file: str) -> list:
                     # CASE 1: result is valid
                     if tmp_race_handle.result_status == 0:
                         # save race object for later evaluation (single race) or simple race results (MCS)
-                        if tot_no_races > 1:
-                            result_objects.append(tmp_race_handle.get_race_results())
+                        if sim_opts["no_sim_runs"] > 1:
+                            race_results.append(tmp_race_handle.get_race_results())
                         else:
-                            result_objects.append(tmp_race_handle)
+                            race_results.append(tmp_race_handle)
 
                     # CASE 2: result is invalid
                     else:
-                        # increase no_races_left
+                        # increase no_sim_runs_left
                         ctr_invalid += 1
-                        no_races_left += 1
+                        no_sim_runs_left += 1
 
                         # pickle race object for further analysis
                         if tmp_race_handle.result_status >= 10 or tmp_race_handle.result_status == -1:
@@ -183,8 +180,8 @@ def main(sim_opts: dict, race_pars_file: str, mcs_pars_file: str) -> list:
 
                 # print progressbar
                 if sim_opts["use_print"]:
-                    helper_funcs.src.progressbar.progressbar(i=tot_no_races - no_races_left,
-                                                             i_total=tot_no_races,
+                    helper_funcs.src.progressbar.progressbar(i=sim_opts["no_sim_runs"] - no_sim_runs_left,
+                                                             i_total=sim_opts["no_sim_runs"],
                                                              prefix="INFO: Simulation progress:")
 
     # print number of invalid races
@@ -194,7 +191,8 @@ def main(sim_opts: dict, race_pars_file: str, mcs_pars_file: str) -> list:
     # print runtime into console window
     if sim_opts["use_print"]:
         runtime = time.perf_counter() - t_start
-        print("INFO: Simulation runtime: {:.3f}s ({:.3f}ms per race)".format(runtime, runtime / tot_no_races * 1000))
+        print("INFO: Simulation runtime: {:.3f}s ({:.3f}ms per race)".format(runtime,
+                                                                             runtime / sim_opts["no_sim_runs"] * 1000))
 
     # ------------------------------------------------------------------------------------------------------------------
     # POSTPROCESSING ---------------------------------------------------------------------------------------------------
@@ -204,47 +202,46 @@ def main(sim_opts: dict, race_pars_file: str, mcs_pars_file: str) -> list:
         print("INFO: Postprocessing in progress...")
 
     # SINGLE RACE ------------------------------------------------------------------------------------------------------
-    if tot_no_races == 1:
-        result_objects[0].check_valid_result()
+    if sim_opts["no_sim_runs"] == 1:
+        race_results[0].check_valid_result()
 
         if sim_opts["use_print_result"]:
-            result_objects[0].print_result()
-            # result_objects[0].print_details()
+            race_results[0].print_result()
+            # race_results[0].print_details()
 
         if sim_opts["use_plot"]:
-            # result_objects[0].plot_laptimes()
-            # result_objects[0].plot_positions()
-            # result_objects[0].plot_racetime_diffto_refdriver(1)
-            # result_objects[0].plot_raceprogress_over_racetime()
+            # race_results[0].plot_laptimes()
+            # race_results[0].plot_positions()
+            # race_results[0].plot_racetime_diffto_refdriver(1)
+            # race_results[0].plot_raceprogress_over_racetime()
 
-            laps_simulated = result_objects[0].cur_lap
-            t_race_winner = np.sort(result_objects[0].racetimes[laps_simulated, :])[0]
-            result_objects[0].plot_racetime_diffto_reflaptime(ref_laptime=t_race_winner / laps_simulated)
+            laps_simulated = race_results[0].cur_lap
+            t_race_winner = np.sort(race_results[0].racetimes[laps_simulated, :])[0]
+            race_results[0].plot_racetime_diffto_reflaptime(ref_laptime=t_race_winner / laps_simulated)
 
         # evaluation
-        # result_objects[0].print_race_standings(racetime=2520.2)
+        # race_results[0].print_race_standings(racetime=2520.2)
 
         # save lap times, race times and positions to csv files
-        result_objects[0].export_results_as_csv(results_path=results_path)
+        race_results[0].export_results_as_csv(results_path=results_path)
 
         # pickle race object for possible CI testing
         result_objects_file_path = os.path.join(testobjects_path, "testobj_racesim_%s_%i.pkl"
                                                 % (pars_in["track_pars"]["name"], pars_in["race_pars"]["season"]))
         with open(result_objects_file_path, 'wb') as fh:
-            pickle.dump(result_objects[0], fh)
+            pickle.dump(race_results[0], fh)
 
     # MULTIPLE RACES ---------------------------------------------------------------------------------------------------
     else:
         # plot histograms
-        racesim.src.mcs_analysis.mcs_analysis(result_objs=result_objects,
-                                              no_bunches=sim_opts["no_bunches"],
+        racesim.src.mcs_analysis.mcs_analysis(race_results=race_results,
                                               use_print_result=sim_opts["use_print_result"],
                                               use_plot=sim_opts["use_plot"])
 
     if sim_opts["use_print"]:
         print("INFO: Simulation finished successfully!")
 
-    return result_objects  # return required in case of CI testing
+    return race_results  # return required in case of CI testing
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -267,9 +264,7 @@ if __name__ == '__main__':
     # create_rand_events:   activates the random creation of FCY (full course yellow) phases and retirements in the race
     #                       simulation -> they will only be created if the according entries in the parameter file
     #                       contain empty lists, otherwise the file entries are used
-    # no_bunches:           number of bunches of race simulations (to be able to determine error plots, should be set 1
-    #                       in most cases)
-    # no_races_per_bunch:   number of (valid) races to simulate per bunch
+    # no_sim_runs:          number of (valid) races to simulate
     # no_workers:           defines number of workers for multiprocess calculations, 1 for single process, >1 for
     #                       multi-process (you can use print(multiprocessing.cpu_count()) to determine the max. number)
     # use_print:            set if prints to console should be used or not (does not suppress hints/warnings)
@@ -277,8 +272,7 @@ if __name__ == '__main__':
     # use_plot:             set if plotting should be used or not
     sim_opts_ = {"use_prob_infl": False,
                  "create_rand_events": False,
-                 "no_bunches": 1,
-                 "no_races_per_bunch": 1,
+                 "no_sim_runs": 1,
                  "no_workers": 1,
                  "use_print": True,
                  "use_print_result": True,

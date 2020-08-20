@@ -35,6 +35,7 @@ class Race(MonteCarlo, RaceAnalysis):
     12  -> positions not plausible
     13  -> minimum distances not kept
     14  -> FCY phases were set but do not appear in the race
+    15  -> driver did not use two different compounds during the race
     """
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -478,7 +479,8 @@ class Race(MonteCarlo, RaceAnalysis):
         The time loss must be added to the inlap or outlap lap time based on the location of the finish line."""
 
         # get relevant pitstop of currently pitting driver
-        rel_pitstop = next(pitstop for pitstop in self.drivers_list[idx_driver].strategy_info if inlap == pitstop[0])
+        rel_pitstop = next((pitstop for pitstop in self.drivers_list[idx_driver].strategy_info if inlap == pitstop[0]),
+                           None)
 
         # perform pit stop (depending on the drivetype)
         if self.drivers_list[idx_driver].car.drivetype == 'combustion':
@@ -1210,6 +1212,14 @@ class Race(MonteCarlo, RaceAnalysis):
         if self.fcy_data["phases"] and not any(True if x in ["VSC", "SC"] else False for x in self.flagstates):
             print("WARNING: FCY phases were set but do not appear in the flag states, race will be marked as invalid!")
             self.result_status = 14
+
+        # check if every driver used at least two different compounds --------------------------------------------------
+        for idx_driver, driver in enumerate(self.drivers_list):
+            if self.bool_driving[-1, idx_driver]\
+                    and not len({x[1] for x in driver.strategy_info}) > 1:
+                print("WARNING: %s did not use two different compounds during the race, race will be marked as"
+                      " invalid!" % driver.initials)
+                self.result_status = 15
 
 
 # testing --------------------------------------------------------------------------------------------------------------

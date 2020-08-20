@@ -23,8 +23,8 @@ def import_pars(use_print: bool, race_pars_file: str) -> dict:
     pars_in['race_pars'] = json.loads(parser.get('RACE_PARS', 'race_pars'))
 
     # determine some additionally required variables
-    pars_in['available_compounds'] = list(pars_in['driver_pars']["tire_pars"].keys())
-    pars_in['available_compounds'].remove('tire_deg_model')
+    pars_in['available_compounds'] = [key for key in pars_in['driver_pars']["tire_pars"].keys()
+                                      if key in ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'I', 'W']]
 
     if pars_in['driver_pars']["drivetype"] == "combustion" and pars_in['driver_pars']["b_fuel_perlap"] is None:
         # calculate approximate fuel consumption per lap

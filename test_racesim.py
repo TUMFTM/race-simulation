@@ -10,8 +10,7 @@ def test_racesim():
     mcs_pars_file_ = 'pars_mcs.ini'
     sim_opts_ = {"use_prob_infl": False,
                  "create_rand_events": False,
-                 "no_bunches": 1,
-                 "no_races_per_bunch": 1,
+                 "no_sim_runs": 1,
                  "no_workers": 1,
                  "use_print": False,
                  "use_print_result": False,

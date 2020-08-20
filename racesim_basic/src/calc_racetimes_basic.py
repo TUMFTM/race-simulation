@@ -26,7 +26,8 @@ def calc_racetimes_basic(t_base: float,
                          t_pitdrive_outlap_sc: float = None,
                          fcy_phases: list = None,
                          t_lap_sc: float = None,
-                         t_lap_fcy: float = None) -> tuple:
+                         t_lap_fcy: float = None,
+                         deact_pitstop_warn: bool = False) -> tuple:
 
     """
     author:
@@ -103,6 +104,8 @@ def calc_racetimes_basic(t_base: float,
     :param t_lap_fcy:               [s] lap time during FCY (full course yellow) phase (required if fcy_phases is not
                                     None)
     :type t_lap_fcy:                float
+    :param deact_pitstop_warn:      Flag to deactivate the pit stop warning (for reinforcement training)
+    :type deact_pitstop_warn:       bool
 
     .. outputs::
     :return t_race_laps:            [s] cumulated lap times (i.e. race times) after every lap
@@ -121,7 +124,7 @@ def calc_racetimes_basic(t_base: float,
     # check strategy input
     if len(strategy) == 0:
         raise ValueError('Start compound information must be provided!')
-    elif len(strategy) == 1:
+    elif len(strategy) == 1 and not deact_pitstop_warn:
         print('WARNING: There is no pitstop given in the strategy data!')
 
     if not all([len(x) == 4 for x in strategy]):
@@ -170,6 +173,14 @@ def calc_racetimes_basic(t_base: float,
         raise ValueError("t_pitdrive_inlap_fcy/sc and t_pitdrive_outlap_fcy/sc must all be supplied if there are FCY"
                          " phases to consider!")
 
+    # assure FCY phases end within the race
+    if fcy_phases is not None:
+        for idx_phase in range(len(fcy_phases)):
+            if fcy_phases[idx_phase][1] > float(tot_no_laps):
+                print("WARNING: Inserted FCY phase ends after the last lap of the race, reducing it to end with the"
+                      " final lap!")
+                fcy_phases[idx_phase][1] = float(tot_no_laps)
+
     # ------------------------------------------------------------------------------------------------------------------
     # CONSIDER BASE LAP TIME, FUEL MASS LOSS AND RACE START ------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
@@ -210,6 +221,9 @@ def calc_racetimes_basic(t_base: float,
                                   stint_length=len_cur_stint,
                                   compound=comp_cur_stint,
                                   tire_pars=tire_pars)
+
+        # consider cold tires in the first lap of a stint
+        t_laps[cur_inlap] += tire_pars["t_add_coldtires"]
 
     # ------------------------------------------------------------------------------------------------------------------
     # CONSIDER PIT STOPS -----------------------------------------------------------------------------------------------
@@ -474,6 +488,19 @@ def calc_racetimes_basic(t_base: float,
 
                 # calculate the difference to SC phase start and save this information as SC delay into the phase
                 fcy_phases_conv[idx_phase][3] = t_race_sc_start - fcy_phases_conv[idx_phase][0]
+
+                # assure that SC delay in first lap is at least 33% of the SC lap time since the SC is driving slower in
+                # the beginning to ease it for the drivers to catch up
+                if fcy_phases_conv[idx_phase][3] < 0.33 * t_lap_sc:
+                    # get required difference to original SC delay
+                    t_sc_delay_diff = 0.33 * t_lap_sc - fcy_phases_conv[idx_phase][3]
+
+                    # increase SC delay, SC end time as well as first lap time behind the SC by required difference
+                    fcy_phases_conv[idx_phase][3] += t_sc_delay_diff
+                    fcy_phases_conv[idx_phase][1] += t_sc_delay_diff  # works also in case of end = math.inf
+                    if start_idx + 1 < tot_no_laps:
+                        # increasing the lap time is only valid if lap after start of the SC is part of the race
+                        t_laps[start_idx + 1] += t_sc_delay_diff
 
                 # calculate SC duration (full laps only) -> set inf if SC phase lasts until the end of the race
                 if math.isclose(cur_phase[1], tot_no_laps):

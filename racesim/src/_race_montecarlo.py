@@ -263,7 +263,8 @@ class MonteCarlo(object):
                                  t_pit_charge_perkwh=presim_driver.car.t_pit_charge_perkwh,
                                  fcy_phases=self.fcy_data["phases"],
                                  t_lap_sc=self.track.t_lap_sc,
-                                 t_lap_fcy=self.track.t_lap_fcy)
+                                 t_lap_fcy=self.track.t_lap_fcy,
+                                 deact_pitstop_warn=False)
 
         t_race_lapwise_tmp = np.insert(t_race_lapwise_tmp, 0, 0.0)  # add race time 0.0s for lap 0
 

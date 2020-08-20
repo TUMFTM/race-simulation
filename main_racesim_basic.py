@@ -36,12 +36,12 @@ repo_path_ = os.path.dirname(os.path.abspath(__file__))
 requirements_path = os.path.join(repo_path_, 'requirements.txt')
 dependencies = []
 
-with open(requirements_path, 'r') as fh:
-    line = fh.readline()
+with open(requirements_path, 'r') as fh_:
+    line = fh_.readline()
 
     while line:
         dependencies.append(line.rstrip())
-        line = fh.readline()
+        line = fh_.readline()
 
 # check dependencies
 pkg_resources.require(dependencies)
@@ -57,22 +57,13 @@ def main(sim_opts: dict, pars_in: dict) -> tuple:
     # CREATE ALL POSSIBLE TIRE COMPOUND COMBINATIONS -------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
 
-    strategy_combinations = {}
-
-    for cur_no_pitstops in range(sim_opts["min_no_pitstops"], sim_opts["max_no_pitstops"] + 1):
-        # combinations used since the chosen order of tire compounds does not matter for the final race time
-        strategy_combinations[cur_no_pitstops] = \
-            list(itertools.combinations_with_replacement(pars_in['available_compounds'], r=cur_no_pitstops + 1))
-
-        # remove strategy combinations using only a single tire compound if enforced
-        if sim_opts["enforce_diff_compounds"]:
-            strategy_combinations[cur_no_pitstops] = [strat_tmp for strat_tmp in strategy_combinations[cur_no_pitstops]
-                                                      if not len(set(strat_tmp)) == 1]
-
-        # remove strategy combinations that do not include the starting tire compound if enforced
-        if sim_opts["start_compound"] is not None:
-            strategy_combinations[cur_no_pitstops] = [strat_tmp for strat_tmp in strategy_combinations[cur_no_pitstops]
-                                                      if sim_opts["start_compound"] in strat_tmp]
+    strategy_combinations = helper_funcs.src.get_strat_combinations.\
+        get_strat_combinations(available_compounds=pars_in['available_compounds'],
+                               min_no_pitstops=sim_opts["min_no_pitstops"],
+                               max_no_pitstops=sim_opts["max_no_pitstops"],
+                               enforce_diff_compounds=sim_opts["enforce_diff_compounds"],
+                               start_compound=sim_opts["start_compound"],
+                               all_orders=False)
 
     # ------------------------------------------------------------------------------------------------------------------
     # INITIALIZATION ---------------------------------------------------------------------------------------------------
@@ -94,9 +85,8 @@ def main(sim_opts: dict, pars_in: dict) -> tuple:
 
             for cur_comp_strat in strategy_combinations[cur_no_pitstops]:
                 # calculate optimal stint lengths using the QP
-                tires_start_age = 0
-                tires = [list(a) for a in zip(cur_comp_strat,
-                                              [tires_start_age] * len(cur_comp_strat))]  # [[compound, age], ...]
+                tires = [[comp, 0] for comp in cur_comp_strat]
+                tires[0][1] = sim_opts["start_age"]
 
                 opt_stint_lengths = racesim_basic.src.opt_strategy_basic.\
                     opt_strategy_basic(tot_no_laps=pars_in['race_pars']['tot_no_laps'],
@@ -147,7 +137,8 @@ def main(sim_opts: dict, pars_in: dict) -> tuple:
                                          t_pit_charge_perkwh=pars_in['driver_pars']["t_pit_charge_perkwh"],
                                          fcy_phases=None,
                                          t_lap_sc=pars_in['track_pars']["t_lap_sc"],
-                                         t_lap_fcy=pars_in['track_pars']["t_lap_fcy"])[0][-1]
+                                         t_lap_fcy=pars_in['track_pars']["t_lap_fcy"],
+                                         deact_pitstop_warn=False)[0][-1]
 
                 t_race_fastest[cur_no_pitstops].append([tuple(strategy_stints), t_race_tmp])
 
@@ -191,8 +182,8 @@ def main(sim_opts: dict, pars_in: dict) -> tuple:
                         t_race_full_factorial[cur_no_pitstops][cur_comp_strat][idxs_cur_inlaps] = np.nan
                         continue
 
-                    # set up strategy and calculate final race time
-                    strategy = [[0, cur_comp_strat[0], 0, 0.0]]  # [[inlap, compound, age, refueling], ...]
+                    # set up strategy and calculate final race time [[inlap, compound, age, refueling], ...]
+                    strategy = [[0, cur_comp_strat[0], sim_opts["start_age"], 0.0]]
 
                     for i in range(cur_no_pitstops):
                         strategy.append([idxs_cur_inlaps[i] + 1,    # inlap = idx + 1
@@ -237,7 +228,8 @@ def main(sim_opts: dict, pars_in: dict) -> tuple:
                                                                       "t_pit_charge_perkwh"],
                                                                   fcy_phases=sim_opts["fcy_phases"],
                                                                   t_lap_sc=pars_in['track_pars']["t_lap_sc"],
-                                                                  t_lap_fcy=pars_in['track_pars']["t_lap_fcy"])[0][-1]
+                                                                  t_lap_fcy=pars_in['track_pars']["t_lap_fcy"],
+                                                                  deact_pitstop_warn=False)[0][-1]
 
     # ------------------------------------------------------------------------------------------------------------------
     # POSTPROCESSING (FULL FACTORIAL) ----------------------------------------------------------------------------------
@@ -299,6 +291,7 @@ if __name__ == '__main__':
     # min_no_pitstops:          set minimum number of pitstops (mostly 1)
     # max_no_pitstops:          set maximum number of pitstops
     # start_compound:           enforce that the given start compound is included (set None if it is free)
+    # start_age:                age of start tire set
     # enforce_diff_compounds:   enforce that at least two different compounds must be used in the race
     # use_qp:                   activate quadratic optim. to determine the optimal inlaps -> requires linear model, is
     #                           fast, reduced plotting
@@ -311,6 +304,7 @@ if __name__ == '__main__':
     sim_opts_ = {"min_no_pitstops": 1,
                  "max_no_pitstops": 2,
                  "start_compound": None,
+                 "start_age": 0,
                  "enforce_diff_compounds": True,
                  "use_qp": False,
                  "fcy_phases": None}

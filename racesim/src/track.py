@@ -199,7 +199,7 @@ class Track(object):
     def __get_t_gap_overtake(self) -> float: return self.__t_gap_overtake
 
     def __set_t_gap_overtake(self, x: float) -> None:
-        if not 0.0 < x < 3.0:
+        if not 0.0 < x < 5.0:
             raise ValueError("Unreasonable value!", x)
         self.__t_gap_overtake = x
     t_gap_overtake = property(__get_t_gap_overtake, __set_t_gap_overtake)
