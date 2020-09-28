@@ -113,6 +113,11 @@ class MonteCarlo(object):
 
             # determine one driver per SC phase involved into the accident
             for cur_phase in fcy_data["phases"]:
+                # check if there are drivers without an retirement left for the current phase (if we simulate only a
+                # small amount of drivers) and break otherwise
+                if all(True if x is not None else False for x in retire_data["retirements"]):
+                    break
+
                 # chose driver until a "free" driver is selected (who was not already selected for another phase)
                 idx_tmp = None
 
@@ -236,6 +241,18 @@ class MonteCarlo(object):
         if presim_driver is None:
             raise ValueError('Reference driver was not found, check driver initials!')
 
+        # determine basic strategy if VSE is used
+        if self.vse is not None:
+            strategy_info_tmp = \
+                self.vse.determine_basic_strategy(driver=presim_driver,
+                                                  tot_no_laps=self.race_pars["tot_no_laps"],
+                                                  fcy_phases=self.fcy_data["phases"],
+                                                  location=self.track.name,
+                                                  mult_tiredeg_fcy=presim_driver.tireset_pars["mult_tiredeg_fcy"],
+                                                  mult_tiredeg_sc=presim_driver.tireset_pars["mult_tiredeg_sc"])
+        else:
+            strategy_info_tmp = presim_driver.strategy_info
+
         # perform pre simulation
         t_race_lapwise_tmp, fcy_phases_tmp = racesim_basic.src.calc_racetimes_basic.\
             calc_racetimes_basic(t_base=(self.track.t_q + self.track.t_gap_racepace + presim_driver.t_driver
@@ -255,7 +272,7 @@ class MonteCarlo(object):
                                  p_grid=presim_driver.p_grid,
                                  t_loss_pergridpos=self.track.t_loss_pergridpos,
                                  t_loss_firstlap=self.track.t_loss_firstlap,
-                                 strategy=presim_driver.strategy_info,
+                                 strategy=strategy_info_tmp,
                                  drivetype=presim_driver.car.drivetype,
                                  m_fuel_init=presim_driver.car.m_fuel,
                                  b_fuel_perlap=presim_driver.car.b_fuel_perlap,
@@ -298,7 +315,7 @@ class MonteCarlo(object):
         self.fcy_data["phases"] = fcy_phases_tmp
         self.fcy_data["domain"] = 'time'
 
-        return t_race_lapwise_tmp[-1]
+        return t_race_lapwise_tmp[-1], strategy_info_tmp
 
     def check_fcyphase_activation(self, idx_driver: int) -> None:
         # check for the activation of a FCY phase is only required if no FCY phase is active and if there is a FCY phase

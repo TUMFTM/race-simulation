@@ -104,6 +104,11 @@ class RaceAnalysis(object):
         print("RESULT: Positions:\n" + positions_str)
 
     def print_result(self) -> None:
+        # print pre-simulation base strategy if using VSE (virtual strategy engineer)
+        if self.presim_info["base_strategy_vse"] is not None:
+            print("RESULT: Pre-simulation base strategy (by VSE) for %s: %s"
+                  % (self.monte_carlo_pars['ref_driver'], str(self.presim_info["base_strategy_vse"])))
+
         # print pre-simulation race duration
         if self.presim_info["race_duration"] is not None:
             print("RESULT: Pre-simulation race duration for %s: %.3fs"

@@ -1,6 +1,7 @@
 # import own modules
 from racesim.src.track import Track
 from racesim.src.driver import Driver
+from racesim.src.vse import VSE
 
 # import general Python modules
 import numpy as np
@@ -69,6 +70,8 @@ class Race(MonteCarlo, RaceAnalysis):
                  "__fcy_handling",          # dict containing everything required to handle the FCY phases correctly
                  "__overtake_allowed",      # bool array containing which drivers are allowed to overtake / be overtaken
                  "__presim_info",           # saves information from the pre-simulation (e.g. race duration)
+                 # virtual strategy engineer ---------------------------------------------------------------------------
+                 "__vse",                   # ML model handling pit stop decisions
                  # result arrays ---------------------------------------------------------------------------------------
                  "__flagstates",            # list with flag states of the race (with regard to the leader's lap)
                  "__result_status")         # integer indicating if the result is valid or not (and why)
@@ -83,6 +86,8 @@ class Race(MonteCarlo, RaceAnalysis):
                  car_pars: dict,
                  tireset_pars: dict,
                  track_pars: dict,
+                 vse_pars: dict,
+                 vse_paths: dict,
                  use_prob_infl: bool,
                  create_rand_events: bool,
                  monte_carlo_pars: dict,
@@ -105,6 +110,14 @@ class Race(MonteCarlo, RaceAnalysis):
 
         # create track object
         self.track = Track(track_pars=track_pars)
+
+        # create VSE (virtual strategy engineer) if indicated
+        if vse_paths is None:
+            self.vse = None
+
+        else:
+            self.vse = VSE(vse_paths=vse_paths,
+                           vse_pars=vse_pars)
 
         # --------------------------------------------------------------------------------------------------------------
         # INITIALIZE RACE OBJECT ---------------------------------------------------------------------------------------
@@ -140,7 +153,9 @@ class Race(MonteCarlo, RaceAnalysis):
                              "idxs_next_phase": [0] * self.no_drivers,
                              "start_end_prog": [[None, None] for _ in range(self.no_drivers)]}
         self.overtake_allowed = np.full((self.race_pars["tot_no_laps"] + 1, self.no_drivers), True)
-        self.presim_info = {"race_duration": None}
+        self.presim_info = {"fcy_phases_progress": [],
+                            "race_duration": None,
+                            "base_strategy_vse": None}
 
         # create result arrays/lists
         self.flagstates = ["G"] * (self.race_pars["tot_no_laps"] + 1)
@@ -169,6 +184,21 @@ class Race(MonteCarlo, RaceAnalysis):
         grid_positions = [cur_driver.p_grid for cur_driver in self.drivers_list]
         idxs_sorted = sorted(range(self.no_drivers), key=lambda idx: grid_positions[idx])
         self.positions[0, idxs_sorted] = np.arange(1, self.no_drivers + 1)
+
+        # reset strategy info for every driver if VSE is used -> keep only the start information
+        if self.vse is not None:
+            for driver in self.drivers_list:
+                # adjust start compound basestrategy VSE is chosen for current driver
+                if self.vse.vse_pars['vse_type'][driver.initials] == 'basestrategy':
+                    driver.strategy_info = [self.vse.vse_pars['base_strategy'][driver.initials][0]]
+
+                # adjust start compound realstrategy VSE is chosen for current driver
+                elif self.vse.vse_pars['vse_type'][driver.initials] == 'realstrategy':
+                    driver.strategy_info = [self.vse.vse_pars['real_strategy'][driver.initials][0]]
+
+                # use start compound that is defined in the strategy info section (NN VSE)
+                else:
+                    driver.strategy_info = [driver.strategy_info[0]]
 
         # --------------------------------------------------------------------------------------------------------------
         # PREPARE FCY PHASES AND RETIREMENTS ---------------------------------------------------------------------------
@@ -219,10 +249,16 @@ class Race(MonteCarlo, RaceAnalysis):
         """
 
         if self.fcy_data["domain"] == 'progress' and self.fcy_data["phases"]:
+            # save progress information for VSE (required for pre simulation within reinforcement training)
+            self.presim_info["fcy_phases_progress"] = copy.deepcopy(self.fcy_data["phases"])
+
+            # convert race progress to race time using a pre simulation
             presim_info_tmp = self.convert_raceprog_to_racetimes()
 
-            # save pre-simulation race duration for postprocessing
-            self.presim_info["race_duration"] = presim_info_tmp
+            # save pre-simulation race duration and base strategy (in case of VSE) for postprocessing
+            self.presim_info["race_duration"] = presim_info_tmp[0]
+            if self.vse is not None:
+                self.presim_info["base_strategy_vse"] = presim_info_tmp[1]
 
     # ------------------------------------------------------------------------------------------------------------------
     # GETTERS / SETTERS ------------------------------------------------------------------------------------------------
@@ -308,6 +344,10 @@ class Race(MonteCarlo, RaceAnalysis):
     def __set_presim_info(self, x: dict) -> None: self.__presim_info = x
     presim_info = property(__get_presim_info, __set_presim_info)
 
+    def __get_vse(self) -> VSE: return self.__vse
+    def __set_vse(self, x: VSE) -> None: self.__vse = x
+    vse = property(__get_vse, __set_vse)
+
     def __get_flagstates(self) -> List[str]: return self.__flagstates
 
     def __set_flagstates(self, x: List[str]) -> None:
@@ -388,6 +428,9 @@ class Race(MonteCarlo, RaceAnalysis):
 
         # check overtaking and modify positions and laptimes according to overtaking time losses
         self.__handle_overtaking_track()
+
+        # if VSE (virtual strategy engineer) is used it has to take the strategy decisions here
+        self.__handle_vse()
 
         # check for pitstop inlaps
         self.__handle_pitstop_inlap()
@@ -635,7 +678,7 @@ class Race(MonteCarlo, RaceAnalysis):
                     # wrong minimum distances etc.), for VSC it is forbidden if at least half of the lap is affected
                     self.overtake_allowed[self.cur_lap, idx] = False
 
-                # set start and end progress information
+                # set start and end progress information (used for VSE)
                 if self.fcy_handling["start_end_prog"][idx][0] is None:
                     # start progress must only be set if phase was newly started
                     self.fcy_handling["start_end_prog"][idx][0] = self.cur_lap - 1.0 + lap_frac_normal_bef
@@ -892,6 +935,38 @@ class Race(MonteCarlo, RaceAnalysis):
                         racetimes_tmp[pos_cur_b] + self.race_pars["min_t_dist"] - racetimes_tmp[pos_back_b]
                     racetimes_tmp[pos_back_b] = racetimes_tmp[pos_cur_b] + self.race_pars["min_t_dist"]
 
+    def __handle_vse(self) -> None:
+        """This method handles the VSE (virtual strategy engineer) which is used to take race strategy related decisions
+        on the basis of the current race situation."""
+
+        if self.vse is not None:
+            # take tirechange decisions (are set None for retired drivers) (important: the decisions are taken based on
+            # the data at the end of the previous lap (with some exceptions, e.g. FCY status))
+            next_compound = self.vse.\
+                decide_pitstop(driver_initials=[driver.initials for driver in self.drivers_list],
+                               cur_compounds=[driver.car.tireset.compound for driver in self.drivers_list],
+                               no_past_tirechanges=[len(driver.strategy_info) - 1 for driver in self.drivers_list],
+                               tire_ages=[driver.car.tireset.age_degr for driver in self.drivers_list],
+                               positions_prevlap=self.positions[self.cur_lap - 1],
+                               pit_prevlap=[True if idx in self.pit_driver_idxs else False
+                                            for idx in range(self.no_drivers)],
+                               cur_lap=self.cur_lap,
+                               tot_no_laps=self.race_pars["tot_no_laps"],
+                               fcy_types=[self.fcy_data["phases"][idx_phase][2] if idx_phase is not None
+                                          else None for idx_phase in self.fcy_handling["idxs_act_phase"]],
+                               fcy_start_end_progs=self.fcy_handling["start_end_prog"],
+                               bool_driving=self.bool_driving[self.cur_lap],
+                               bool_driving_prevlap=self.bool_driving[self.cur_lap - 1],
+                               racetimes_prevlap=self.racetimes[self.cur_lap - 1],
+                               location=self.track.name,
+                               used_2compounds=[True if len({x[1] for x in driver.strategy_info}) > 1 else False
+                                                for driver in self.drivers_list])
+
+            # update strategy info for affected drivers
+            for idx, compound in enumerate(next_compound):
+                if compound is not None:
+                    self.drivers_list[idx].strategy_info.append([self.cur_lap, compound, 0, 0.0])
+
     def __handle_pitstop_inlap(self) -> None:
         """
         Check for drivers doing a pitstop and save their indices (used again for pitstop_outlap afterwards). Consider
@@ -991,7 +1066,7 @@ class Race(MonteCarlo, RaceAnalysis):
             # show which phase was really considered within the lap
             self.check_fcyphase_activation(idx_driver=idx)
 
-            # if a new FCY phase was started set start and end progress information
+            # if a new FCY phase was started set start and end progress information (used for VSE)
             if self.fcy_handling["idxs_act_phase"][idx] is not None \
                     and self.fcy_handling["start_end_prog"][idx][0] is None:
                 # get lap fractions

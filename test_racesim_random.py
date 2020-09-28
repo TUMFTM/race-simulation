@@ -15,6 +15,7 @@ def test_racesim():
     mcs_pars_file_ = 'pars_mcs.ini'
     sim_opts_ = {"use_prob_infl": True,
                  "create_rand_events": True,
+                 "use_vse": False,
                  "no_sim_runs": 1,
                  "no_workers": 1,
                  "use_print": False,

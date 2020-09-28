@@ -3,7 +3,8 @@ This repository contains a race simulation for the simulation of motorsport circ
 the determination of an appropriate race strategy, i.e. of the pit stops (number of stops, inlaps, tire compound choice,
 possibly refueling). The race simulation considers long-term effects such as mass reduction due to burned fuel and tire
 degradation as well as the interactions between all race participants. It is based on a lap-wise discretization for fast
-calculation times. Probabilistic influences are also modeled and can be evaluated using Monte Carlo simulation.
+calculation times. Probabilistic influences are also modeled and can be evaluated using Monte Carlo simulation. For the
+making of automated race strategy decisions, we developed the Virtual Strategy Engineer (VSE).
 
 Contact person: [Alexander Heilmeier](mailto:alexander.heilmeier@tum.de).
 
@@ -34,7 +35,8 @@ chose the `C++ build tools` option to install the required C++ compiler and its 
 The intended workflow is as follows:
 * `racesim_basic`: Use the simplified race simulation to determine the fastest basic race strategy. It can be used as a
 first guess for the race strategy in the race simulation.
-* `racesim`: Use the race simulation to simulate the race and to optimize the race strategy.
+* `racesim`: Use the race simulation to simulate the race and to optimize the race strategy. The VSE can be used for
+other participants if you do not want to determine all strategies manually.
 
 # Running the basic race simulation
 If the requirements are installed on the system, follow these steps:
@@ -56,6 +58,17 @@ files are contained in `/racesim/input/parameters`.
 
 ![Race simulation real time output for the Yas Marina racetrack](racesim/racesim_yasmarina.png)
 
+### Virtual Strategy Engineer (VSE)
+The virtual strategy engineer (VSE) determines the race strategies of the race participants if activated. It eases the
+handling for the user of the race simulation since he must not determine the strategies of all race participants
+manually. Several variants of the VSE are available: base strategy, real strategy, and supervised. With the base
+strategy option, it uses a pre-defined strategy that was optimized for a minimum race duration (under the assumption of
+a race without opponents). With the real strategy option, the strategies of the real-world races are applied. With the
+supervised option, the VSE is based on two artificial neural networks to make the race strategy decisions. Our VSE is
+focused on Formula 1. Thus, it determines whether a driver should come into the pits and which tire compound to fit.
+The initial concept of automated decision-making based on artificial neural networks was developed by André Thomaser
+during his semester thesis within the project.
+
 ### Contained parameter files
 We included exemplary parameter files for the 121 Formula 1 races in the seasons 2014 - 2019. They were automatically
 created on the basis of our Formula 1 timing database (link is below). The program used for this was developed by
@@ -70,9 +83,15 @@ DOI: 10.1109/ITSC.2018.8570012
 
 ### Detailed description of the race simulation (probabilistic effects and random events)
 Please refer to our paper for further information:\
-Heilmeier, Graf, Betz,Lienkamp\
+Heilmeier, Graf, Betz, Lienkamp\
 Application of Monte Carlo Methods to Consider Probabilistic Effects in a Race Simulation for Circuit Motorsport\
 DOI: 10.3390/app10124229
+
+### Detailed description of the virtual strategy engineer
+Please refer to our paper for further information:\
+Heilmeier, Thomaser, Graf, Betz\
+Virtual Strategy Engineer: Using Artificial Neural Networks for Making Race Strategy Decisions in Circuit Motorsport\
+Currently in review...
 
 # Related open-source repositories
 * Lap time simulation: https://github.com/TUMFTM/laptime-simulation

@@ -78,3 +78,25 @@ def check_pars(sim_opts: dict, pars_in: dict) -> None:
                         and cur_retirement[1] > pars_in["race_pars"]["tot_no_laps"]):
                 raise ValueError("A retiring driver does not participate in the race or the start of his retirement"
                                  " is unreasonable!")
+
+    if sim_opts["use_print"] and sim_opts["use_vse"]:
+        print("INFO: Using VSE (virtual strategy engineer) to take tire change decisions!")
+
+    if sim_opts["use_vse"]:
+        # assure that available and parameterized compounds are in rising order
+        pars_in["vse_pars"]["available_compounds"].sort()
+        pars_in["vse_pars"]["param_dry_compounds"].sort()
+
+        # assure that there are 2 or 3 dry compounds available in the race
+        no_dry_compounds = sum(1 if x in ["C1", "C2", "C3", "C4", "C5", "C6"] else 0
+                               for x in pars_in["vse_pars"]["available_compounds"])
+
+        if not 2 <= no_dry_compounds <= 3:
+            raise ValueError("VSE is trained for 2 to 3 different dry compounds but %i were given!" % no_dry_compounds)
+
+        # assure that every driver has at least 2 dry compounds available (i.e. parameterized)
+        for initials in pars_in["driver_pars"]:
+            if not len([x for x in pars_in["tireset_pars"][initials]
+                        if x in ["C1", "C2", "C3", "C4", "C5", "C6"]]) >= 2:
+                raise ValueError("There must be at least two different tire compounds available for every driver! This"
+                                 " is not fulfilled for %s!" % initials)

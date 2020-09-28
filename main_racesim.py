@@ -68,9 +68,10 @@ def main(sim_opts: dict, race_pars_file: str, mcs_pars_file: str) -> list:
     os.makedirs(testobjects_path, exist_ok=True)
 
     # load parameters
-    pars_in = racesim.src.import_pars.import_pars(use_print=sim_opts["use_print"],
-                                                  race_pars_file=race_pars_file,
-                                                  mcs_pars_file=mcs_pars_file)
+    pars_in, vse_paths = racesim.src.import_pars.import_pars(use_print=sim_opts["use_print"],
+                                                             use_vse=sim_opts["use_vse"],
+                                                             race_pars_file=race_pars_file,
+                                                             mcs_pars_file=mcs_pars_file)
 
     # check parameters
     racesim.src.check_pars.check_pars(sim_opts=sim_opts, pars_in=pars_in)
@@ -98,7 +99,8 @@ def main(sim_opts: dict, race_pars_file: str, mcs_pars_file: str) -> list:
             # simulate race
             tmp_race_handle = race_handle(pars_in=pars_in,
                                           use_prob_infl=sim_opts['use_prob_infl'],
-                                          create_rand_events=sim_opts['create_rand_events'])
+                                          create_rand_events=sim_opts['create_rand_events'],
+                                          vse_paths=vse_paths)
             no_sim_runs_left -= 1
 
             # CASE 1: result is valid
@@ -148,7 +150,8 @@ def main(sim_opts: dict, race_pars_file: str, mcs_pars_file: str) -> list:
                     job_queue.append(executor.submit(race_handle,
                                                      pars_in,
                                                      sim_opts['use_prob_infl'],
-                                                     sim_opts['create_rand_events']))
+                                                     sim_opts['create_rand_events'],
+                                                     vse_paths))
                     no_sim_runs_left -= 1
 
                 # collect results as soon as they are available
@@ -264,6 +267,8 @@ if __name__ == '__main__':
     # create_rand_events:   activates the random creation of FCY (full course yellow) phases and retirements in the race
     #                       simulation -> they will only be created if the according entries in the parameter file
     #                       contain empty lists, otherwise the file entries are used
+    # use_vse:              determines if the VSE (virtual strategy engineer) is used to take tire change decisions
+    #                       -> the VSE type is defined in the parameter file (VSE_PARS)
     # no_sim_runs:          number of (valid) races to simulate
     # no_workers:           defines number of workers for multiprocess calculations, 1 for single process, >1 for
     #                       multi-process (you can use print(multiprocessing.cpu_count()) to determine the max. number)
@@ -272,6 +277,7 @@ if __name__ == '__main__':
     # use_plot:             set if plotting should be used or not
     sim_opts_ = {"use_prob_infl": False,
                  "create_rand_events": False,
+                 "use_vse": False,
                  "no_sim_runs": 1,
                  "no_workers": 1,
                  "use_print": True,
