@@ -88,7 +88,7 @@ def check_pars(sim_opts: dict, pars_in: dict) -> None:
         pars_in["vse_pars"]["param_dry_compounds"].sort()
 
         # assure that there are 2 or 3 dry compounds available in the race
-        no_dry_compounds = sum(1 if x in ["C1", "C2", "C3", "C4", "C5", "C6"] else 0
+        no_dry_compounds = sum(1 if x in ["A1", "A2", "A3", "A4", "A5", "A6", "A7"] else 0
                                for x in pars_in["vse_pars"]["available_compounds"])
 
         if not 2 <= no_dry_compounds <= 3:
@@ -97,6 +97,6 @@ def check_pars(sim_opts: dict, pars_in: dict) -> None:
         # assure that every driver has at least 2 dry compounds available (i.e. parameterized)
         for initials in pars_in["driver_pars"]:
             if not len([x for x in pars_in["tireset_pars"][initials]
-                        if x in ["C1", "C2", "C3", "C4", "C5", "C6"]]) >= 2:
+                        if x in ["A1", "A2", "A3", "A4", "A5", "A6", "A7"]]) >= 2:
                 raise ValueError("There must be at least two different tire compounds available for every driver! This"
                                  " is not fulfilled for %s!" % initials)

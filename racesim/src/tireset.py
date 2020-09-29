@@ -44,7 +44,7 @@ class Tireset(object):
     def __get_compound(self) -> str: return self.__compound
 
     def __set_compound(self, x: str) -> None:
-        if x not in ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'I', 'W']:
+        if x not in ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'I', 'W']:
             raise NameError("Unknown name!", x)
         self.__compound = x
     compound = property(__get_compound, __set_compound)

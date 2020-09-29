@@ -18,7 +18,7 @@ def get_strat_combinations(available_compounds: list,
     This function creates all possible combinations of tire compounds considering the inserted boundary conditions.
 
     .. inputs::
-    :param available_compounds:     Available compounds that should be included in the combinations, e.g. ['C4', 'C5']
+    :param available_compounds:     Available compounds that should be included in the combinations, e.g. ['A4', 'A5']
     :type available_compounds:      list
     :param min_no_pitstops:         Minimum number of pit stops
     :type min_no_pitstops:          int
@@ -34,7 +34,7 @@ def get_strat_combinations(available_compounds: list,
 
     .. outputs::
     :return strategy_combinations:  Dict with possible strategy combinations for every number of stops, e.g.
-                                    {1: [('C4', 'C5')], 2: [('C4', 'C5', 'C5'), ('C4', 'C4', 'C5')], ...}
+                                    {1: [('A4', 'A5')], 2: [('A4', 'A5', 'A5'), ('A4', 'A4', 'A5')], ...}
     :rtype strategy_combinations:   dict
     """
 

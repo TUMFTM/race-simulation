@@ -24,7 +24,7 @@ def import_pars(use_print: bool, race_pars_file: str) -> dict:
 
     # determine some additionally required variables
     pars_in['available_compounds'] = [key for key in pars_in['driver_pars']["tire_pars"].keys()
-                                      if key in ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'I', 'W']]
+                                      if key in ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'I', 'W']]
 
     if pars_in['driver_pars']["drivetype"] == "combustion" and pars_in['driver_pars']["b_fuel_perlap"] is None:
         # calculate approximate fuel consumption per lap

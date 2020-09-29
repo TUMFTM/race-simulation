@@ -353,7 +353,7 @@ class VSE(object):
         # --------------------------------------------------------------------------------------------------------------
 
         # create list containing None for drivers who perform no pit stop this lap, otherwise the compound name that is
-        # chosen, e.g. [None, "C4", None, None] for four drivers
+        # chosen, e.g. [None, "A4", None, None] for four drivers
         next_compounds = [None] * self.no_drivers
 
         # --------------------------------------------------------------------------------------------------------------

@@ -275,20 +275,20 @@ class VSE_SUPERVISED(object):
                     # case two available compounds: in 2014 and 2015 we have only medium and soft -> subtract 1 from
                     # decision to fit available compounds with indices 0 and 1
                     if len(avail_dry_compounds) == 2:
-                        idx_rel_compound__corr = idx_rel_compound - 1
+                        idx_rel_compound_corr = idx_rel_compound - 1
 
                         # continue to compound with next lower probability if current compound is not available in the
                         # race (index - 1) or not parameterized
-                        if idx_rel_compound__corr < 0 \
-                                or avail_dry_compounds[idx_rel_compound__corr] not in param_dry_compounds:
+                        if idx_rel_compound_corr < 0 \
+                                or avail_dry_compounds[idx_rel_compound_corr] not in param_dry_compounds:
                             continue
 
                     # case three available compounds
                     else:
-                        idx_rel_compound__corr = idx_rel_compound
+                        idx_rel_compound_corr = idx_rel_compound
 
                         # continue to compound with next lower probability if current compound is not parameterized
-                        if avail_dry_compounds[idx_rel_compound__corr] not in param_dry_compounds:
+                        if avail_dry_compounds[idx_rel_compound_corr] not in param_dry_compounds:
                             continue
 
                     # continue to compound with next lower probability if this is the last planned pit stop (or if it is
@@ -296,11 +296,11 @@ class VSE_SUPERVISED(object):
                     # not drive two different compounds in the race if the current compound was chosen
                     if (remainingtirechanges_curlap[idx_abs] == 1 or raceprogress_prevlap > 0.9) \
                             and not used_2compounds[idx_abs] \
-                            and avail_dry_compounds[idx_rel_compound__corr] == cur_compounds[idx_abs]:
+                            and avail_dry_compounds[idx_rel_compound_corr] == cur_compounds[idx_abs]:
                         continue
 
                     # set new compound
-                    next_compounds[idx_abs] = avail_dry_compounds[idx_rel_compound__corr]
+                    next_compounds[idx_abs] = avail_dry_compounds[idx_rel_compound_corr]
                     break
 
         return next_compounds
