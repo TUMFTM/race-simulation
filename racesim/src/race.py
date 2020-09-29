@@ -53,6 +53,7 @@ class Race(MonteCarlo, RaceAnalysis):
                  "__race_pars",             # contains race parameters such as t_overtake, drs_window, ...
                  "__monte_carlo_pars",      # parameters used for monte carlo method
                  "__pit_driver_idxs",       # create list for pitting drivers (set by checking their inlaps)
+                 "__pit_outlap_losses",     # create array to save time losses due to pit stop (outlap) for DRS checks
                  # race state ------------------------------------------------------------------------------------------
                  "__laptimes",              # array with laptimes
                  "__racetimes",             # array with racetimes
@@ -136,6 +137,7 @@ class Race(MonteCarlo, RaceAnalysis):
         self.race_pars['drs_act_lap'] = [self.race_pars["drs_allow_lap"]] * self.no_drivers
         self.monte_carlo_pars = monte_carlo_pars
         self.pit_driver_idxs = []
+        self.pit_outlap_losses = np.zeros(self.no_drivers)
 
         # create race state arrays (tot_no_laps + 1 is set to include lap 0)
         self.laptimes = np.zeros((self.race_pars["tot_no_laps"] + 1, self.no_drivers))
@@ -304,6 +306,10 @@ class Race(MonteCarlo, RaceAnalysis):
     def __set_pit_driver_idxs(self, x: List[int]) -> None: self.__pit_driver_idxs = x
     pit_driver_idxs = property(__get_pit_driver_idxs, __set_pit_driver_idxs)
 
+    def __get_pit_outlap_losses(self) -> np.ndarray: return self.__pit_outlap_losses
+    def __set_pit_outlap_losses(self, x: np.ndarray) -> None: self.__pit_outlap_losses = x
+    pit_outlap_losses = property(__get_pit_outlap_losses, __set_pit_outlap_losses)
+
     def __get_laptimes(self) -> np.ndarray: return self.__laptimes
     def __set_laptimes(self, x: np.ndarray) -> None: self.__laptimes = x
     laptimes = property(__get_laptimes, __set_laptimes)
@@ -459,6 +465,9 @@ class Race(MonteCarlo, RaceAnalysis):
         temporary racetimes array.
         """
 
+        # reset pit outlap time losses
+        self.pit_outlap_losses = np.zeros(self.no_drivers)
+
         # continue only if there are drivers that drove into the pit last lap (this also prevents the function from
         # being executed in the first lap)
         if self.pit_driver_idxs:
@@ -516,6 +525,9 @@ class Race(MonteCarlo, RaceAnalysis):
             # distances after pitstops (both using the timelosses that were determined before)
             self.__check_pos_changes_wo_timeloss(t_lap_tmp=timelosses_pit)
             self.__assure_min_dists(t_lap_tmp=timelosses_pit)
+
+            # save pit outlap time losses (required for DRS checks later)
+            self.pit_outlap_losses = np.copy(self.laptimes[self.cur_lap])
 
     def __perform_pitstop_standstill(self, idx_driver: int, inlap: int) -> float:
         """This method returns the standstill time loss during a pit stop that is caused by tire change and refueling.
@@ -609,18 +621,36 @@ class Race(MonteCarlo, RaceAnalysis):
             # DRS ------------------------------------------------------------------------------------------------------
             # ----------------------------------------------------------------------------------------------------------
 
-            # check time gain due to DRS if DRS can be activated and driver is not in first position
-            if self.race_pars["use_drs"] \
-                    and self.cur_lap >= self.race_pars["drs_act_lap"][idx] \
-                    and self.positions[self.cur_lap, idx] > 1:
+            if self.race_pars["use_drs"] and self.cur_lap >= self.race_pars["drs_act_lap"][idx]:
+                # we assume that the first half of the DRS gain happens on the start finish straight, which is why we
+                # base the check on the race state before the pit stop outlap handling
+                if self.positions[self.cur_lap - 1, idx] > 1:
+                    # get bool array with driver in front of current driver at the end of the previous lap
+                    pos_front_b = self.positions[self.cur_lap - 1] == self.positions[self.cur_lap - 1, idx] - 1
 
-                # get bool array with driver in front of cur_driver in previous lap
-                pos_front_b = self.positions[self.cur_lap - 1] == self.positions[self.cur_lap - 1, idx] - 1
+                    # skip DRS check if driver in front was in the pit lane
+                    pos_front_idx = np.argmax(pos_front_b)
+                    if pos_front_idx in self.pit_driver_idxs:
+                        continue
 
-                # if within drs_window at the end of previous lap driver can use DRS
-                if self.racetimes[self.cur_lap - 1, idx] - self.racetimes[self.cur_lap - 1, pos_front_b] \
-                        <= self.race_pars["drs_window"]:
-                    self.laptimes[self.cur_lap, idx] += self.track.t_drseffect
+                    # activate DRS (half effect) if driver was within the DRS window at the end of the previous lap
+                    if self.racetimes[self.cur_lap - 1, idx] - self.racetimes[self.cur_lap - 1, pos_front_b] \
+                            <= self.race_pars["drs_window"]:
+                        # t_drseffect is negative
+                        self.laptimes[self.cur_lap, idx] += self.track.t_drseffect / 2.0
+
+                # we assume that the second half of the DRS gain happens elsewhere on the track, which is why we base
+                # the check on the race state after the pit stop outlap handling
+                if self.positions[self.cur_lap, idx] > 1:
+                    # get bool array with driver in front of current driver after the pit stop outlap handling
+                    pos_front_b = self.positions[self.cur_lap] == self.positions[self.cur_lap, idx] - 1
+
+                    # activate DRS (half effect) if driver is within the DRS window after the pit stop outlap handling
+                    if (self.racetimes[self.cur_lap - 1, idx] + self.pit_outlap_losses[idx]) \
+                            - (self.racetimes[self.cur_lap - 1, pos_front_b] + self.pit_outlap_losses[pos_front_b]) \
+                            <= self.race_pars["drs_window"]:
+                        # t_drseffect is negative
+                        self.laptimes[self.cur_lap, idx] += self.track.t_drseffect / 2.0
 
     def __handle_fcy(self) -> None:
         """
