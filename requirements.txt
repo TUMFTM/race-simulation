@@ -4,6 +4,6 @@ pandas==1.0.4
 scipy==1.4.1
 pytest==5.4.3
 # required in opt_strategy_basic
-cvxpy==1.0.31
+cvxpy==1.1.7
 # required for VSE
 tensorflow==2.2.0

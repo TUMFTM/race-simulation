@@ -101,8 +101,8 @@ def opt_strategy_basic(tot_no_laps: int,
     P = cp.Constant(P)
 
     # set up problem using objective and constraints
-    objective = cp.Minimize(0.5 * cp.quad_form(x, P) + q * x)
-    constraints = [G * x <= h, A * x == b]
+    objective = cp.Minimize(0.5 * cp.quad_form(x, P) + q @ x)
+    constraints = [G @ x <= h, A @ x == b]
     prob = cp.Problem(objective, constraints)
 
     # ------------------------------------------------------------------------------------------------------------------
