@@ -31,7 +31,7 @@ def mcs_analysis(race_results: list,
     # ------------------------------------------------------------------------------------------------------------------
 
     if not type(race_results) is list and type(race_results[0]) is dict:
-        raise ValueError("List of dicts required as result_objs (list of results from race.race_results())!")
+        raise RuntimeError("List of dicts required as result_objs (list of results from race.race_results())!")
 
     no_sim_runs = len(race_results)
 
@@ -44,7 +44,7 @@ def mcs_analysis(race_results: list,
     no_drivers = len(driver_initials)
     col_names = ["no_pos" + str(i) for i in range(1, no_drivers + 1)]
 
-    race_results_df = pd.DataFrame(np.zeros((no_drivers, no_drivers), dtype=np.int),
+    race_results_df = pd.DataFrame(np.zeros((no_drivers, no_drivers), dtype=np.int32),
                                    columns=col_names,
                                    index=driver_initials)
 

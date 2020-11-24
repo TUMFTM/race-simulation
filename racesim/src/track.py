@@ -84,7 +84,7 @@ class Track(object):
 
     def __set_t_q(self, x: float) -> None:
         if not 30.0 < x < 200.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_q = x
     t_q = property(__get_t_q, __set_t_q)
 
@@ -92,7 +92,7 @@ class Track(object):
 
     def __set_t_gap_racepace(self, x: float) -> None:
         if not -20.0 <= x < 10.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_gap_racepace = x
     t_gap_racepace = property(__get_t_gap_racepace, __set_t_gap_racepace)
 
@@ -100,7 +100,7 @@ class Track(object):
 
     def __set_t_lap_fcy(self, x: float) -> None:
         if not 30.0 <= x < 300.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_lap_fcy = x
     t_lap_fcy = property(__get_t_lap_fcy, __set_t_lap_fcy)
 
@@ -108,7 +108,7 @@ class Track(object):
 
     def __set_t_lap_sc(self, x: float) -> None:
         if not 30.0 <= x < 300.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_lap_sc = x
     t_lap_sc = property(__get_t_lap_sc, __set_t_lap_sc)
 
@@ -116,7 +116,7 @@ class Track(object):
 
     def __set_t_lap_sens_mass(self, x: float) -> None:
         if not 0.0 < x < 1.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_lap_sens_mass = x
     t_lap_sens_mass = property(__get_t_lap_sens_mass, __set_t_lap_sens_mass)
 
@@ -124,7 +124,7 @@ class Track(object):
 
     def __set_t_pit_tirechange_min(self, x: float) -> None:
         if not 1.5 < x < 10.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_pit_tirechange_min = x
     t_pit_tirechange_min = property(__get_t_pit_tirechange_min, __set_t_pit_tirechange_min)
 
@@ -132,7 +132,7 @@ class Track(object):
 
     def __set_t_pitdrive_inlap(self, x: float) -> None:
         if not -5.0 < x < 30.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_pitdrive_inlap = x
     t_pitdrive_inlap = property(__get_t_pitdrive_inlap, __set_t_pitdrive_inlap)
 
@@ -140,7 +140,7 @@ class Track(object):
 
     def __set_t_pitdrive_outlap(self, x: float) -> None:
         if not -5.0 < x < 30.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_pitdrive_outlap = x
     t_pitdrive_outlap = property(__get_t_pitdrive_outlap, __set_t_pitdrive_outlap)
 
@@ -148,7 +148,7 @@ class Track(object):
 
     def __set_t_pitdrive_inlap_fcy(self, x: float) -> None:
         if not -15.0 < x < 30.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_pitdrive_inlap_fcy = x
     t_pitdrive_inlap_fcy = property(__get_t_pitdrive_inlap_fcy, __set_t_pitdrive_inlap_fcy)
 
@@ -156,7 +156,7 @@ class Track(object):
 
     def __set_t_pitdrive_outlap_fcy(self, x: float) -> None:
         if not -5.0 < x < 30.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_pitdrive_outlap_fcy = x
     t_pitdrive_outlap_fcy = property(__get_t_pitdrive_outlap_fcy, __set_t_pitdrive_outlap_fcy)
 
@@ -164,7 +164,7 @@ class Track(object):
 
     def __set_t_pitdrive_inlap_sc(self, x: float) -> None:
         if not -15.0 < x < 30.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_pitdrive_inlap_sc = x
     t_pitdrive_inlap_sc = property(__get_t_pitdrive_inlap_sc, __set_t_pitdrive_inlap_sc)
 
@@ -172,7 +172,7 @@ class Track(object):
 
     def __set_t_pitdrive_outlap_sc(self, x: float) -> None:
         if not -5.0 < x < 30.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_pitdrive_outlap_sc = x
     t_pitdrive_outlap_sc = property(__get_t_pitdrive_outlap_sc, __set_t_pitdrive_outlap_sc)
 
@@ -184,7 +184,7 @@ class Track(object):
 
     def __set_t_loss_pergridpos(self, x: float) -> None:
         if not 0.0 < x < 10.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_loss_pergridpos = x
     t_loss_pergridpos = property(__get_t_loss_pergridpos, __set_t_loss_pergridpos)
 
@@ -192,7 +192,7 @@ class Track(object):
 
     def __set_t_loss_firstlap(self, x: float) -> None:
         if not 0.0 < x < 15.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_loss_firstlap = x
     t_loss_firstlap = property(__get_t_loss_firstlap, __set_t_loss_firstlap)
 
@@ -200,7 +200,7 @@ class Track(object):
 
     def __set_t_gap_overtake(self, x: float) -> None:
         if not 0.0 < x < 5.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_gap_overtake = x
     t_gap_overtake = property(__get_t_gap_overtake, __set_t_gap_overtake)
 
@@ -208,7 +208,7 @@ class Track(object):
 
     def __set_t_gap_overtake_vel(self, x: float) -> None:
         if not -0.2 < x <= 0.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_gap_overtake_vel = x
     t_gap_overtake_vel = property(__get_t_gap_overtake_vel, __set_t_gap_overtake_vel)
 
@@ -216,7 +216,7 @@ class Track(object):
 
     def __set_t_drseffect(self, x: float) -> None:
         if not -10.0 < x <= 0.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_drseffect = x
     t_drseffect = property(__get_t_drseffect, __set_t_drseffect)
 

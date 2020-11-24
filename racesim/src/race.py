@@ -142,7 +142,7 @@ class Race(MonteCarlo, RaceAnalysis):
         # create race state arrays (tot_no_laps + 1 is set to include lap 0)
         self.laptimes = np.zeros((self.race_pars["tot_no_laps"] + 1, self.no_drivers))
         self.racetimes = np.zeros((self.race_pars["tot_no_laps"] + 1, self.no_drivers))
-        self.positions = np.zeros((self.race_pars["tot_no_laps"] + 1, self.no_drivers), dtype=np.int)
+        self.positions = np.zeros((self.race_pars["tot_no_laps"] + 1, self.no_drivers), dtype=np.int32)
         self.bool_driving = np.full((self.race_pars["tot_no_laps"] + 1, self.no_drivers), True)
         self.progress = np.zeros(self.no_drivers)
 
@@ -208,10 +208,10 @@ class Race(MonteCarlo, RaceAnalysis):
 
         # check for possible intersections between manually inserted FCY phases
         if self.fcy_data["phases"] and self.check_fcyphase_intersection(fcy_data=self.fcy_data):
-            raise ValueError("Manually inserted FCY phases either intersect or lie too close together (the race"
-                             " simulation can only handle one active phase per lap, therefore a minimum distance of"
-                             " %.1f laps (SC) and %.1f laps (VSC) is enforced between two phases)!"
-                             % (self.monte_carlo_pars["min_dist_sc"], self.monte_carlo_pars["min_dist_vsc"]))
+            raise RuntimeError("Manually inserted FCY phases either intersect or lie too close together (the race"
+                               " simulation can only handle one active phase per lap, therefore a minimum distance of"
+                               " %.1f laps (SC) and %.1f laps (VSC) is enforced between two phases)!"
+                               % (self.monte_carlo_pars["min_dist_sc"], self.monte_carlo_pars["min_dist_vsc"]))
 
         # create random events such as accidents or car failures if create_rand_events is True and empty lists were
         # given in the parameter file (such events must be determined in front of the actual race simulation)
@@ -270,7 +270,7 @@ class Race(MonteCarlo, RaceAnalysis):
 
     def __set_cur_lap(self, x: int) -> None:
         if not 0 <= x < 200:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__cur_lap = x
     cur_lap = property(__get_cur_lap, __set_cur_lap)
 
@@ -282,7 +282,7 @@ class Race(MonteCarlo, RaceAnalysis):
 
     def __set_no_drivers(self, x: int) -> None:
         if not 0 < x < 30:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__no_drivers = x
     no_drivers = property(__get_no_drivers, __set_no_drivers)
 
@@ -359,7 +359,7 @@ class Race(MonteCarlo, RaceAnalysis):
     def __set_flagstates(self, x: List[str]) -> None:
         for entry in x:
             if entry not in ["G", "Y", "VSC", "SC", "C"]:
-                raise ValueError("Unknown flagstate %s!" % entry)
+                raise RuntimeError("Unknown flagstate %s!" % entry)
         self.__flagstates = x
     flagstates = property(__get_flagstates, __set_flagstates)
 
@@ -569,7 +569,7 @@ class Race(MonteCarlo, RaceAnalysis):
                                      t_pit_tirechange_min=self.track.t_pit_tirechange_min)
 
         else:
-            raise ValueError("Unknown drivetype!")
+            raise RuntimeError("Unknown drivetype!")
 
         return timeloss_standstill
 
@@ -990,7 +990,17 @@ class Race(MonteCarlo, RaceAnalysis):
                                racetimes_prevlap=self.racetimes[self.cur_lap - 1],
                                location=self.track.name,
                                used_2compounds=[True if len({x[1] for x in driver.strategy_info}) > 1 else False
-                                                for driver in self.drivers_list])
+                                                for driver in self.drivers_list],
+                               cur_positions=self.positions[self.cur_lap],
+                               cur_racetimes_tmp=self.racetimes[self.cur_lap - 1] + self.laptimes[self.cur_lap],
+                               t_pit_tirechange_min=self.track.t_pit_tirechange_min,
+                               t_pit_tirechange_adds=[driver.car.t_pit_tirechange_add for driver in self.drivers_list],
+                               t_pitdrive_inlap=self.track.t_pitdrive_inlap,
+                               t_pitdrive_outlap=self.track.t_pitdrive_outlap,
+                               t_pitdrive_inlap_fcy=self.track.t_pitdrive_inlap_fcy,
+                               t_pitdrive_outlap_fcy=self.track.t_pitdrive_outlap_fcy,
+                               t_pitdrive_inlap_sc=self.track.t_pitdrive_inlap_sc,
+                               t_pitdrive_outlap_sc=self.track.t_pitdrive_outlap_sc)
 
             # update strategy info for affected drivers
             for idx, compound in enumerate(next_compound):
@@ -1321,7 +1331,8 @@ class Race(MonteCarlo, RaceAnalysis):
         # check if every driver used at least two different compounds --------------------------------------------------
         for idx_driver, driver in enumerate(self.drivers_list):
             if self.bool_driving[-1, idx_driver]\
-                    and not len({x[1] for x in driver.strategy_info}) > 1:
+                    and not len({x[1] for x in driver.strategy_info}) > 1\
+                    and idx_driver not in self.vse.idxs_driver_reinf_training:
                 print("WARNING: %s did not use two different compounds during the race, race will be marked as"
                       " invalid!" % driver.initials)
                 self.result_status = 15

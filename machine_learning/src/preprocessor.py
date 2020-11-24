@@ -46,7 +46,7 @@ class Preprocessor(object):
 
         # check input
         if len(self.idxs_buck) != len(bins_buck):
-            raise ValueError("Number of bucketized features does not fit number of inserted bins!")
+            raise RuntimeError("Number of bucketized features does not fit number of inserted bins!")
 
         # handle bucketized columns (bins_buck holds only the separation marks, left and right are -inf, +inf)
         for idx_0, idx_buck in enumerate(self.idxs_buck):
@@ -122,7 +122,7 @@ class Preprocessor(object):
     def fit(self, X: np.ndarray) -> None:
         # check if inserted number of columns fits
         if not len(self.idxs_num) + len(self.idxs_cat) + len(self.idxs_buck) == X.shape[1]:
-            raise ValueError("Wrong number of features!")
+            raise RuntimeError("Wrong number of features!")
 
         # handle numerical columns
         means = np.mean(X[:, self.idxs_num], axis=0)
@@ -146,7 +146,7 @@ class Preprocessor(object):
     def transform(self, X: np.ndarray, dtype_out: type = np.float32) -> np.ndarray:
         # check if already fitted
         if self.no_transf_cols == 0:
-            raise ValueError("Seems like the preprocessor was not fitted yet!")
+            raise RuntimeError("Seems like the preprocessor was not fitted yet!")
 
         # extend dimension if X is a single entry
         if X.ndim == 1:
@@ -156,7 +156,7 @@ class Preprocessor(object):
 
         # check if inserted number of columns fits
         if not len(self.idxs_num) + len(self.idxs_cat) + len(self.idxs_buck) == X_.shape[1]:
-            raise ValueError("Wrong number of features!")
+            raise RuntimeError("Wrong number of features!")
 
         # create output array
         out = np.zeros((X_.shape[0], self.no_transf_cols), dtype=dtype_out)
@@ -182,7 +182,7 @@ class Preprocessor(object):
                 conv_idx += self.col_info[raw_idx]['no_classes']
 
             else:
-                raise ValueError("Unknown column!")
+                raise RuntimeError("Unknown column!")
 
         # reduce dimension if X is a single entry
         if X.ndim == 1:
@@ -200,7 +200,7 @@ class Preprocessor(object):
 
         # check if already fitted
         if self.no_transf_cols == 0:
-            raise ValueError("Seems like the preprocessor was not fitted yet!")
+            raise RuntimeError("Seems like the preprocessor was not fitted yet!")
 
         # extend dimension if X_conv is a single entry
         if X_conv.ndim == 1:
@@ -210,7 +210,7 @@ class Preprocessor(object):
 
         # check if inserted number of columns fits
         if not self.no_transf_cols == X_conv_.shape[1]:
-            raise ValueError("Wrong number of columns in X_conv!")
+            raise RuntimeError("Wrong number of columns in X_conv!")
 
         # create output array
         out = np.zeros((X_conv_.shape[0], len(self.col_info)))
@@ -243,7 +243,7 @@ class Preprocessor(object):
                 conv_idx += self.col_info[raw_idx]['no_classes']
 
             else:
-                raise ValueError("Unknown column!")
+                raise RuntimeError("Unknown column!")
 
         # reduce dimension if X_conv is a single entry
         if X_conv.ndim == 1:

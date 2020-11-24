@@ -68,7 +68,7 @@ class VSE_REALSTRATEGY(object):
 
             # set new compound
             if next_compound not in param_dry_compounds:
-                raise ValueError("Chosen compound is not parameterized!")
+                raise RuntimeError("Chosen compound is not parameterized!")
             else:
                 next_compounds[idx_driver] = next_compound
 

@@ -53,7 +53,7 @@ class Tireset(object):
 
     def __set_age_tot(self, x: int) -> None:
         if not 0 <= x < 100:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__age_tot = x
     age_tot = property(__get_age_tot, __set_age_tot)
 
@@ -61,7 +61,7 @@ class Tireset(object):
 
     def __set_age_curstint(self, x: int) -> None:
         if not 0 <= x < 100:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__age_curstint = x
     age_curstint = property(__get_age_curstint, __set_age_curstint)
 
@@ -69,7 +69,7 @@ class Tireset(object):
 
     def __set_age_degr(self, x: float) -> None:
         if not 0.0 <= x < 100.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__age_degr = x
     age_degr = property(__get_age_degr, __set_age_degr)
 
@@ -95,7 +95,7 @@ class Tireset(object):
         elif cur_fcy_type == 'SC':
             self.age_degr += lap_frac_normal + (1.0 - lap_frac_normal) * self.tireset_pars["mult_tiredeg_sc"]
         else:
-            raise ValueError("Unknown FCY phase type!")
+            raise RuntimeError("Unknown FCY phase type!")
 
         self.age_tot += 1
         self.age_curstint += 1

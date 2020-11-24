@@ -3,12 +3,14 @@ import racesim.src.combustioncar
 import racesim.src.driver
 import racesim.src.electriccar
 import racesim.src.race
+import racesim.src.race_reinftrain
 import racesim.src.tireset
 import racesim.src.track
 import racesim.src.race_handle
 import racesim.src.mcs_analysis
 import racesim.src.vse
 import racesim.src.vse_supervised
+import racesim.src.vse_reinforcement
 import racesim.src.vse_basestrategy
 import racesim.src.vse_realstrategy
 import racesim.src.import_pars

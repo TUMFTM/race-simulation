@@ -128,15 +128,14 @@ dmypy.json
 .idea
 
 # repo specific stuff
+**/databases/*.sqlite
 **/input/**/*.pkl.gz
-!.github
 **/input/**/*.sqlite
 **/output/*
+**/saved_models/*
 !**/emptydoc.txt
 docker/*
 !docker/build_docker.sh
 !docker/create_docker.sh
 !docker/Dockerfile
 !docker/run_docker.sh
-**/databases/*.sqlite
-**/saved_models/*

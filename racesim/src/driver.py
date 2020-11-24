@@ -78,7 +78,7 @@ class Driver(object):
 
     def __set_carno(self, x: int) -> None:
         if not 0 < x < 100:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__carno = x
     carno = property(__get_carno, __set_carno)
 
@@ -98,7 +98,7 @@ class Driver(object):
 
     def __set_t_driver(self, x: float) -> None:
         if not 0.0 <= x < 20.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_driver = x
     t_driver = property(__get_t_driver, __set_t_driver)
 
@@ -106,7 +106,7 @@ class Driver(object):
 
     def __set_t_lap_var_sigma(self, x: float) -> None:
         if not 0.0 <= x < 2.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_lap_var_sigma = x
     t_lap_var_sigma = property(__get_t_lap_var_sigma, __set_t_lap_var_sigma)
 
@@ -118,7 +118,7 @@ class Driver(object):
 
     def __set_p_grid(self, x: int) -> None:
         if not 0 < x < 30:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__p_grid = x
     p_grid = property(__get_p_grid, __set_p_grid)
 
@@ -169,7 +169,7 @@ class Driver(object):
 
     def update_lap_influences(self, cur_lap: int, influence_type: str):
         if influence_type not in ["pitoutlap", "pitinlap", "sc", "vsc", "retiring"]:
-            raise ValueError("Unknown influence type %s!" % influence_type)
+            raise RuntimeError("Unknown influence type %s!" % influence_type)
 
         if cur_lap not in self.lap_influences:
             self.lap_influences[cur_lap] = [influence_type]

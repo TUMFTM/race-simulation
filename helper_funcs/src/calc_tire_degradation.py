@@ -40,7 +40,7 @@ def calc_tire_degradation(tire_age_start: int or float,
 
     # check input
     if tire_pars["tire_deg_model"] not in ['lin', 'quad', 'cub', 'ln']:
-        raise ValueError('Unknown tire degradation model!')
+        raise RuntimeError('Unknown tire degradation model!')
 
     # CASE 1: calculation for a single lap (using math library)
     if stint_length == 1:

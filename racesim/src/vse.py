@@ -4,6 +4,7 @@ import math
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # set logging level such that TF shows only errors
 from racesim.src.vse_supervised import VSE_SUPERVISED
+from racesim.src.vse_reinforcement import VSE_REINFORCEMENT
 from racesim.src.vse_basestrategy import VSE_BASESTRATEGY
 from racesim.src.vse_realstrategy import VSE_REALSTRATEGY
 
@@ -19,10 +20,11 @@ class VSE(object):
     .. description::
     This class handles the various variants of the VSE (Virtual Strategy Engineer). The VSE takes decisions related
     to race strategy, i.e. it determines when a pit stop happens and which compound is used for the next stint.
-    Currently, there are four types of VSE: the supervised VSE, a base strategy VSE, and a real strategy VSE. The
-    supervised VSE is based on a NN that was trained on real data. The base strategy VSE and the real strategy VSE rely
-    on the pre-definied base strategies (optimal strategy on a free race track, i.e. without opponents) and real
-    strategies in the race parameter file.
+    Currently, there are four types of VSE: the supervised VSE, the reinforcement VSE, a base strategy VSE, and a real
+    strategy VSE. The supervised VSE is based on a NN that was trained on real data. The reinforcement VSE is based on a
+    NN that was trained within the simulation. The base strategy VSE and the real strategy VSE rely on the pre-definied
+    base strategies (optimal strategy on a free race track, i.e. without opponents) and real strategies in the race
+    parameter file.
 
     tc = tire change decision
     cc = compound choice
@@ -33,9 +35,12 @@ class VSE(object):
     # ------------------------------------------------------------------------------------------------------------------
 
     __slots__ = ("__vse_supervised",
+                 "__vse_reinf",
                  "__vse_base",
                  "__vse_real",
                  "__idxs_driver_supervised",
+                 "__idxs_driver_reinf",
+                 "__idxs_driver_reinf_training",
                  "__idxs_driver_base",
                  "__idxs_driver_real",
                  "__no_drivers",
@@ -44,7 +49,8 @@ class VSE(object):
                  "__vse_pars",
                  "__cache_tireageprogress_corr_prevlap",
                  "__cache_position_preprevlap",
-                 "__cache_ahead_preprevlap")
+                 "__cache_ahead_preprevlap",
+                 "__cache_position_bef_pit_prevlap")
 
     # ------------------------------------------------------------------------------------------------------------------
     # CONSTRUCTOR ------------------------------------------------------------------------------------------------------
@@ -61,21 +67,34 @@ class VSE(object):
 
         # initialize unknown variables (they are set during the first call of the decide_pitstop method)
         self.idxs_driver_supervised = None
+        self.idxs_driver_reinf = None
+        self.idxs_driver_reinf_training = None  # used for training purposes only, no automatic decision making
         self.idxs_driver_base = None
         self.idxs_driver_real = None
         self.no_drivers = None
         self.cache_tireageprogress_corr_prevlap = None
         self.cache_position_preprevlap = None
         self.cache_ahead_preprevlap = None
+        self.cache_position_bef_pit_prevlap = None
 
         # create supervised VSE (if indicated) -------------------------------------------------------------------------
-        if any(True if self.vse_pars["vse_type"][key] == 'supervised' else False for key in self.vse_pars["vse_type"]):
+        if any(True if self.vse_pars["vse_type"][key] == 'supervised' else False for key in self.vse_pars["vse_type"]) \
+                or any(True if self.vse_pars["vse_type"][key] == 'reinforcement_training' else False
+                       for key in self.vse_pars["vse_type"]):
             self.vse_supervised = VSE_SUPERVISED(preprocessor_cc_path=vse_paths["supervised_preprocessor_cc"],
                                                  preprocessor_tc_path=vse_paths["supervised_preprocessor_tc"],
                                                  nnmodel_cc_path=vse_paths["supervised_nnmodel_cc"],
                                                  nnmodel_tc_path=vse_paths["supervised_nnmodel_tc"])
         else:
             self.vse_supervised = None
+
+        # create reinforcement VSE (if indicated) ----------------------------------------------------------------------
+        if any(True if self.vse_pars["vse_type"][key] == 'reinforcement' else False
+               for key in self.vse_pars["vse_type"]):
+            self.vse_reinf = VSE_REINFORCEMENT(preprocessor_path=vse_paths["reinf_preprocessor"],
+                                               nnmodel_path=vse_paths["reinf_nnmodel"])
+        else:
+            self.vse_reinf = None
 
         # create base strategy VSE (if indicated) ----------------------------------------------------------------------
         if any(True if self.vse_pars["vse_type"][key] == 'basestrategy' else False
@@ -99,6 +118,10 @@ class VSE(object):
     def __set_vse_supervised(self, x: VSE_SUPERVISED) -> None: self.__vse_supervised = x
     vse_supervised = property(__get_vse_supervised, __set_vse_supervised)
 
+    def __get_vse_reinf(self) -> VSE_REINFORCEMENT: return self.__vse_reinf
+    def __set_vse_reinf(self, x: VSE_REINFORCEMENT) -> None: self.__vse_reinf = x
+    vse_reinf = property(__get_vse_reinf, __set_vse_reinf)
+
     def __get_vse_base(self) -> VSE_BASESTRATEGY: return self.__vse_base
     def __set_vse_base(self, x: VSE_BASESTRATEGY) -> None: self.__vse_base = x
     vse_base = property(__get_vse_base, __set_vse_base)
@@ -110,6 +133,14 @@ class VSE(object):
     def __get_idxs_driver_supervised(self) -> list: return self.__idxs_driver_supervised
     def __set_idxs_driver_supervised(self, x: list) -> None: self.__idxs_driver_supervised = x
     idxs_driver_supervised = property(__get_idxs_driver_supervised, __set_idxs_driver_supervised)
+
+    def __get_idxs_driver_reinf(self) -> list: return self.__idxs_driver_reinf
+    def __set_idxs_driver_reinf(self, x: list) -> None: self.__idxs_driver_reinf = x
+    idxs_driver_reinf = property(__get_idxs_driver_reinf, __set_idxs_driver_reinf)
+
+    def __get_idxs_driver_reinf_training(self) -> list: return self.__idxs_driver_reinf_training
+    def __set_idxs_driver_reinf_training(self, x: list) -> None: self.__idxs_driver_reinf_training = x
+    idxs_driver_reinf_training = property(__get_idxs_driver_reinf_training, __set_idxs_driver_reinf_training)
 
     def __get_idxs_driver_base(self) -> list: return self.__idxs_driver_base
     def __set_idxs_driver_base(self, x: list) -> None: self.__idxs_driver_base = x
@@ -148,6 +179,11 @@ class VSE(object):
     def __set_cache_ahead_preprevlap(self, x: np.ndarray) -> None: self.__cache_ahead_preprevlap = x
     cache_ahead_preprevlap = property(__get_cache_ahead_preprevlap, __set_cache_ahead_preprevlap)
 
+    def __get_cache_position_bef_pit_prevlap(self) -> np.ndarray: return self.__cache_position_bef_pit_prevlap
+    def __set_cache_position_bef_pit_prevlap(self, x: np.ndarray) -> None: self.__cache_position_bef_pit_prevlap = x
+    cache_position_bef_pit_prevlap = property(__get_cache_position_bef_pit_prevlap,
+                                              __set_cache_position_bef_pit_prevlap)
+
     # ------------------------------------------------------------------------------------------------------------------
     # METHODS ----------------------------------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
@@ -155,15 +191,21 @@ class VSE(object):
     def reset(self) -> None:
         # reset VSE such that it can be used to simulate (the same race) again
         self.idxs_driver_supervised = None
+        self.idxs_driver_reinf = None
+        self.idxs_driver_reinf_training = None
         self.idxs_driver_base = None
         self.idxs_driver_real = None
         self.no_drivers = None
         self.cache_tireageprogress_corr_prevlap = None
         self.cache_position_preprevlap = None
         self.cache_ahead_preprevlap = None
+        self.cache_position_bef_pit_prevlap = None
 
         if self.vse_supervised is not None:
             self.vse_supervised.reset()
+
+        if self.vse_reinf is not None:
+            self.vse_reinf.reset()
 
         if self.vse_base is not None:
             self.vse_base.reset()
@@ -186,7 +228,17 @@ class VSE(object):
                        bool_driving_prevlap: np.ndarray,
                        racetimes_prevlap: np.ndarray,
                        location: str,
-                       used_2compounds: list) -> list:
+                       used_2compounds: list,
+                       cur_positions: np.ndarray,
+                       cur_racetimes_tmp: np.ndarray,
+                       t_pit_tirechange_min: float,
+                       t_pit_tirechange_adds: list,
+                       t_pitdrive_inlap: float,
+                       t_pitdrive_outlap: float,
+                       t_pitdrive_inlap_fcy: float,
+                       t_pitdrive_outlap_fcy: float,
+                       t_pitdrive_inlap_sc: float,
+                       t_pitdrive_outlap_sc: float) -> list:
         """
         .. inputs::
         :param driver_initials:         List with driver initials (must be in the same order as the remaining inputs)
@@ -223,16 +275,45 @@ class VSE(object):
         :param used_2compounds:         List containing booleans that indicate if the according driver used two
                                         different compounds in the race
         :type used_2compounds:          list
+        :param cur_positions:           Current driver positions
+        :type cur_positions:            np.ndarray
+        :param cur_racetimes_tmp:       Estimated race times at the end of the current lap (without considering possible
+                                        pit stops of course)
+        :type cur_racetimes_tmp:        np.ndarray
+        :param t_pit_tirechange_min:    Track-specific minimum tire change timeloss
+        :type t_pit_tirechange_min:     float
+        :param t_pit_tirechange_adds:   Team-specific additional tire change timeloss
+        :type t_pit_tirechange_adds:    list
+        :param t_pitdrive_inlap:        Track-specific pit stop time loss (in-lap)
+        :type t_pitdrive_inlap:         float
+        :param t_pitdrive_outlap:       Track-specific pit stop time loss (out-lap)
+        :type t_pitdrive_outlap:        float
+        :param t_pitdrive_inlap_fcy:    Track-specific pit stop time loss under FCY conditions (in-lap)
+        :type t_pitdrive_inlap_fcy:     float
+        :param t_pitdrive_outlap_fcy:   Track-specific pit stop time loss under FCY conditions (out-lap)
+        :type t_pitdrive_outlap_fcy:    float
+        :param t_pitdrive_inlap_sc:     Track-specific pit stop time loss under SC conditions (in-lap)
+        :type t_pitdrive_inlap_sc:      float
+        :param t_pitdrive_outlap_sc:    Track-specific pit stop time loss under SC conditions (out-lap)
+        :type t_pitdrive_outlap_sc:     float
         """
 
         # --------------------------------------------------------------------------------------------------------------
         # INITIALIZATION (IF CALLED FOR THE FIRST TIME) ----------------------------------------------------------------
         # --------------------------------------------------------------------------------------------------------------
 
-        # save idxs of drivers using supervised VSE and base strategy VSE and real strategy VSE
+        # save idxs of drivers using supervised VSE and reinforcement VSE and base strategy VSE and real strategy VSE
         if self.idxs_driver_supervised is None:
             self.idxs_driver_supervised = [idx for idx, initials in enumerate(driver_initials)
                                            if self.vse_pars["vse_type"][initials] == 'supervised']
+
+        if self.idxs_driver_reinf is None:
+            self.idxs_driver_reinf = [idx for idx, initials in enumerate(driver_initials)
+                                      if self.vse_pars["vse_type"][initials] == 'reinforcement']
+
+        if self.idxs_driver_reinf_training is None:
+            self.idxs_driver_reinf_training = [idx for idx, initials in enumerate(driver_initials)
+                                               if self.vse_pars["vse_type"][initials] == 'reinforcement_training']
 
         if self.idxs_driver_base is None:
             self.idxs_driver_base = [idx for idx, initials in enumerate(driver_initials)
@@ -261,16 +342,17 @@ class VSE(object):
         if self.cache_ahead_preprevlap is None:
             self.cache_ahead_preprevlap = np.full(self.no_drivers, np.nan)
 
+        # initialize cache for position data -> contains positions at the end of the previous lap before the pitstops
+        if self.cache_position_bef_pit_prevlap is None:
+            self.cache_position_bef_pit_prevlap = np.full(self.no_drivers, np.nan)
+
         # --------------------------------------------------------------------------------------------------------------
-        # GENERAL PREPROCESSING ----------------------------------------------------------------------------------------
+        # GENERAL PREPROCESSING (MAINLY SUPERVISED VSE) ----------------------------------------------------------------
         # --------------------------------------------------------------------------------------------------------------
 
         """It makes sense to handle the preprocessing here instead within the VSEs since some of the preprocessing
         requires knowledge of the states of all drivers, independently from which VSE type they use, e.g.
         tirechange_pursuer."""
-
-        # raceprogress_prevlap -----------------------------------------------------------------------------------------
-        raceprogress_prevlap = (cur_lap - 1) / tot_no_laps
 
         # rel_compound_num_curlap --------------------------------------------------------------------------------------
         if len(self.avail_dry_compounds) == 2:
@@ -310,13 +392,13 @@ class VSE(object):
                             fcy_stat_curlap[idx_driver] = 4
 
         # remainingtirechanges_curlap ----------------------------------------------------------------------------------
-        remainingtirechanges_curlap = [len(self.vse_pars["base_strategy"][initials]) - 1
-                                       - no_past_tirechanges[idx_driver]
-                                       for idx_driver, initials in enumerate(driver_initials)]
+        remainingtirechanges_curlap = \
+            [len(self.vse_pars["base_strategy"][initials]) - 1 - no_past_tirechanges[idx_driver]
+             for idx_driver, initials in enumerate(driver_initials)]
 
         if any(True if x > 3 else False for x in remainingtirechanges_curlap):
-            raise ValueError("The NNs are trained for a maximum of 3 pit stops per race, reduce desired number of"
-                             " pit stops!")
+            raise RuntimeError("The NNs are trained for a maximum of 3 pit stops per race, reduce desired number of"
+                               " pit stops!")
 
         # tirechange_pursuer_prevlap -----------------------------------------------------------------------------------
         tirechange_pursuer_prevlap = [0] * self.no_drivers
@@ -349,6 +431,108 @@ class VSE(object):
             close_ahead_preprevlap = list(self.cache_ahead_preprevlap < 1.5)
 
         # --------------------------------------------------------------------------------------------------------------
+        # GENERAL PREPROCESSING (MAINLY REINFORCEMENT VSE) -------------------------------------------------------------
+        # --------------------------------------------------------------------------------------------------------------
+
+        # calculate estimated position losses of a pit stop ------------------------------------------------------------
+        est_pos_losses = [0] * self.no_drivers
+
+        for idx_driver in range(self.no_drivers):
+            # avoid feature generation for retired drivers
+            if not bool_driving[idx_driver]:
+                continue
+
+            # get estimated time loss of a pit stop under current race conditions
+            est_pit_time_loss = t_pit_tirechange_min + t_pit_tirechange_adds[idx_driver]
+
+            if fcy_stat_curlap[idx_driver] == 0:
+                est_pit_time_loss += t_pitdrive_inlap + t_pitdrive_outlap
+            elif fcy_stat_curlap[idx_driver] in [1, 2, 3]:
+                # first SC lap (FCY status 3) is calculated with FCY pit time loss since it is assumed that the drivers
+                # did not catch up to the SC already
+                est_pit_time_loss += t_pitdrive_inlap_fcy + t_pitdrive_outlap_fcy
+            else:
+                est_pit_time_loss += t_pitdrive_inlap_sc + t_pitdrive_outlap_sc
+
+            # get number of drivers which are within est_pit_time_loss behind current driver (where argument required
+            # to avoid runtime warning when comparing nan values)
+            condition_1 = np.less(cur_racetimes_tmp[idx_driver], cur_racetimes_tmp,
+                                  where=~np.isnan(cur_racetimes_tmp), out=np.full(self.no_drivers, False))
+            condition_2 = np.less_equal(cur_racetimes_tmp, cur_racetimes_tmp[idx_driver] + est_pit_time_loss,
+                                        where=~np.isnan(cur_racetimes_tmp), out=np.full(self.no_drivers, False))
+
+            est_pos_losses[idx_driver] = int(np.sum(np.logical_and(condition_1, condition_2)))
+
+        # determine close_aheads and close_behinds ---------------------------------------------------------------------
+        close_behinds = [False] * self.no_drivers
+        close_aheads = [False] * self.no_drivers
+
+        for idx_driver in range(self.no_drivers):
+            # avoid feature generation for retired drivers
+            if not bool_driving[idx_driver]:
+                continue
+
+            # calculate interval value
+            if cur_positions[idx_driver] == 1:
+                interval = math.inf
+            else:
+                idx_driver_ahead = int(np.argmax(cur_positions == cur_positions[idx_driver] - 1))
+                interval = cur_racetimes_tmp[idx_driver] - cur_racetimes_tmp[idx_driver_ahead]
+
+            # calculate ahead value
+            if cur_positions[idx_driver] == self.no_drivers:
+                ahead = math.inf
+            else:
+                idx_driver_behind = int(np.argmax(cur_positions == cur_positions[idx_driver] + 1))
+
+                if not bool_driving[idx_driver_behind]:
+                    # pretend there is no driver behind if driver behind retired
+                    ahead = math.inf
+                else:
+                    ahead = cur_racetimes_tmp[idx_driver_behind] - cur_racetimes_tmp[idx_driver]
+
+            close_behinds[idx_driver] = interval <= 1.5
+            close_aheads[idx_driver] = ahead <= 1.5
+
+        # determine if there are defendable undercut attempts ----------------------------------------------------------
+        defendable_undercuts = [False] * self.no_drivers
+
+        if cur_lap > 1:
+            for idx_driver in range(self.no_drivers):
+                # avoid feature generation for retired drivers and continue if driver was on last position in previous
+                # lap
+                if not bool_driving[idx_driver] or self.cache_position_bef_pit_prevlap[idx_driver] == self.no_drivers:
+                    continue
+
+                # get index of pursuer in previous lap
+                idx_driver_behind_prevlap = int(np.argmax(self.cache_position_bef_pit_prevlap
+                                                          == self.cache_position_bef_pit_prevlap[idx_driver] + 1))
+
+                # continue if pursuer retired in the meanwhile
+                if not bool_driving[idx_driver_behind_prevlap]:
+                    continue
+
+                # undercut only possible if driver behind drove into the pit in previous lap
+                if pit_prevlap[idx_driver_behind_prevlap]:
+                    # get time loss of a pit stop under current race conditions
+                    est_pit_time_loss = t_pit_tirechange_min + t_pit_tirechange_adds[idx_driver]
+
+                    if fcy_stat_curlap == 0:
+                        est_pit_time_loss += t_pitdrive_inlap + t_pitdrive_outlap
+                    elif fcy_stat_curlap in [1, 2, 3]:
+                        # first SC lap (FCY status 3) is calculated with FCY pit time loss since it is assumed that the
+                        # drivers did not catch up to the SC already
+                        est_pit_time_loss += t_pitdrive_inlap_fcy + t_pitdrive_outlap_fcy
+                    else:
+                        est_pit_time_loss += t_pitdrive_inlap_sc + t_pitdrive_outlap_sc
+
+                    # undercut is assumed to be possible and defendable if driver behind is within 10s after an
+                    # imaginary pit stop of the driver
+                    if 0.0 < cur_racetimes_tmp[idx_driver_behind_prevlap] \
+                            - (cur_racetimes_tmp[idx_driver] + est_pit_time_loss) <= 10.0:
+                        defendable_undercuts[idx_driver] = True
+
+        # --------------------------------------------------------------------------------------------------------------
         # INITIALIZE OUTPUT LIST ---------------------------------------------------------------------------------------
         # --------------------------------------------------------------------------------------------------------------
 
@@ -365,7 +549,7 @@ class VSE(object):
             self.vse_supervised.preprocess_features(
                 tireageprogress_corr_zeroinchange=[self.cache_tireageprogress_corr_prevlap[idx]
                                                    for idx in self.idxs_driver_supervised],
-                raceprogress=raceprogress_prevlap,
+                raceprogress=(cur_lap - 1) / tot_no_laps,
                 position=[positions_prevlap[idx] for idx in self.idxs_driver_supervised],
                 rel_compound_num_nl=[rel_compound_num_curlap[idx] for idx in self.idxs_driver_supervised],
                 fcy_stat_nl=[fcy_stat_curlap[idx] for idx in self.idxs_driver_supervised],
@@ -385,9 +569,46 @@ class VSE(object):
                 remainingtirechanges_curlap=[remainingtirechanges_curlap[idx] for idx in self.idxs_driver_supervised],
                 used_2compounds=[used_2compounds[idx] for idx in self.idxs_driver_supervised],
                 cur_compounds=[cur_compounds[idx] for idx in self.idxs_driver_supervised],
-                raceprogress_prevlap=raceprogress_prevlap)
+                raceprogress_prevlap=(cur_lap - 1) / tot_no_laps)
 
             for idx_rel, idx_abs in enumerate(self.idxs_driver_supervised):
+                if next_compounds_tmp[idx_rel] is not None:
+                    next_compounds[idx_abs] = next_compounds_tmp[idx_rel]
+
+        # --------------------------------------------------------------------------------------------------------------
+        # MAKE DECISIONS WITH REINFORCEMENT VSE ------------------------------------------------------------------------
+        # --------------------------------------------------------------------------------------------------------------
+
+        if self.vse_reinf is not None and self.idxs_driver_reinf:
+            # rel_position and rel_est_pos_loss must also be calculated in case of a single driver (pre-simulation)
+            if self.no_drivers == 1:
+                no_drivers_tmp = 1
+            else:
+                no_drivers_tmp = self.no_drivers - 1
+
+            # preprocessing
+            self.vse_reinf.preprocess_features(
+                raceprogress_curlap=cur_lap / tot_no_laps,
+                rel_position=[(cur_positions[idx] - 1) / no_drivers_tmp for idx in self.idxs_driver_reinf],
+                rel_est_pos_loss=[est_pos_losses[idx] / no_drivers_tmp for idx in self.idxs_driver_reinf],
+                tireageprogress_corr=[tire_ages[idx] / tot_no_laps for idx in self.idxs_driver_reinf],
+                cur_compound=[cur_compounds[idx] for idx in self.idxs_driver_reinf],
+                used_2compounds=[used_2compounds[idx] for idx in self.idxs_driver_reinf],
+                fcy_stat_curlap=[fcy_stat_curlap[idx] for idx in self.idxs_driver_reinf],
+                close_behind=[close_behinds[idx] for idx in self.idxs_driver_reinf],
+                close_ahead=[close_aheads[idx] for idx in self.idxs_driver_reinf],
+                defendable_undercut=[defendable_undercuts[idx] for idx in self.idxs_driver_reinf],
+                driver_initials=[driver_initials[idx] for idx in self.idxs_driver_reinf])
+
+            # decision making (returns a list with an entry for every driver in idxs_driver_reinf)
+            next_compounds_tmp = self.vse_reinf.make_decision(
+                bool_driving=bool_driving[self.idxs_driver_reinf],
+                param_dry_compounds=self.param_dry_compounds,
+                used_2compounds=[used_2compounds[idx] for idx in self.idxs_driver_reinf],
+                cur_compounds=[cur_compounds[idx] for idx in self.idxs_driver_reinf],
+                raceprogress_prevlap=(cur_lap - 1) / tot_no_laps)
+
+            for idx_rel, idx_abs in enumerate(self.idxs_driver_reinf):
                 if next_compounds_tmp[idx_rel] is not None:
                     next_compounds[idx_abs] = next_compounds_tmp[idx_rel]
 
@@ -469,6 +690,9 @@ class VSE(object):
         # cache ahead data of previous lap (copy not required since aheads_prevlap was created within this method) -----
         self.cache_ahead_preprevlap = aheads_prevlap
 
+        # cache position data of current lap (before pit stops) --------------------------------------------------------
+        self.cache_position_bef_pit_prevlap = np.copy(cur_positions)
+
         return next_compounds
 
     def determine_basic_strategy(self,
@@ -476,6 +700,13 @@ class VSE(object):
                                  tot_no_laps: int,
                                  fcy_phases: list,
                                  location: str,
+                                 t_pit_tirechange_min: float,
+                                 t_pitdrive_inlap: float,
+                                 t_pitdrive_outlap: float,
+                                 t_pitdrive_inlap_fcy: float,
+                                 t_pitdrive_outlap_fcy: float,
+                                 t_pitdrive_inlap_sc: float,
+                                 t_pitdrive_outlap_sc: float,
                                  mult_tiredeg_fcy: float = 0.5,
                                  mult_tiredeg_sc: float = 0.25) -> list:
 
@@ -483,7 +714,18 @@ class VSE(object):
         This method is intended to determine a basic strategy with the VSE for the pre-simulation such that it resembles
         the behavior of the VSE in the race. Equally to the pre-simulation, this method only works with FCY phases in
         the progress domain.
+
+        Attention: Using the reinforcement VSE does not work during training!
         """
+
+        # save original VSE to be able to temporarily replace it in case of reinforcement training
+        orig_vse = self.vse_pars["vse_type"][driver.initials]
+
+        if orig_vse == 'reinforcement_training':
+            if self.vse_supervised is None:
+                raise RuntimeError("Supervised VSE is required but was not initialized!")
+
+            self.vse_pars["vse_type"][driver.initials] = 'supervised'
 
         # --------------------------------------------------------------------------------------------------------------
         # SIMULATE RACE ------------------------------------------------------------------------------------------------
@@ -542,7 +784,7 @@ class VSE(object):
             elif fcy_types_tmp == 'VSC':
                 tire_age_tmp += lap_frac_normal + mult_tiredeg_fcy * (1.0 - lap_frac_normal)
             else:
-                raise ValueError("Unknown FCY type!")
+                raise RuntimeError("Unknown FCY type!")
 
             # used2compounds -------------------------------------------------------------------------------------------
             used_2compounds_tmp = len({x[1] for x in basic_strategy_info}) > 1
@@ -551,6 +793,8 @@ class VSE(object):
             # GET TIRECHANGE DECISION ----------------------------------------------------------------------------------
             # ----------------------------------------------------------------------------------------------------------
 
+            # cur_racetimes_tmp can be set 0.0 since the race times are not directly inserted into the NN but used to
+            # determine features such as close ahead/behind (that are not relevant in case of a single driver)
             next_compound = self.decide_pitstop(driver_initials=[driver.initials],
                                                 cur_compounds=[basic_strategy_info[-1][1]],
                                                 no_past_tirechanges=[len(basic_strategy_info) - 1],
@@ -565,13 +809,26 @@ class VSE(object):
                                                 bool_driving_prevlap=np.ones(1, dtype=np.bool),
                                                 racetimes_prevlap=np.zeros(1),
                                                 location=location,
-                                                used_2compounds=[used_2compounds_tmp])[0]
+                                                used_2compounds=[used_2compounds_tmp],
+                                                cur_positions=np.ones(1),
+                                                cur_racetimes_tmp=np.zeros(1),
+                                                t_pit_tirechange_min=t_pit_tirechange_min,
+                                                t_pit_tirechange_adds=[driver.car.t_pit_tirechange_add],
+                                                t_pitdrive_inlap=t_pitdrive_inlap,
+                                                t_pitdrive_outlap=t_pitdrive_outlap,
+                                                t_pitdrive_inlap_fcy=t_pitdrive_inlap_fcy,
+                                                t_pitdrive_outlap_fcy=t_pitdrive_outlap_fcy,
+                                                t_pitdrive_inlap_sc=t_pitdrive_inlap_sc,
+                                                t_pitdrive_outlap_sc=t_pitdrive_outlap_sc)[0]
 
             if next_compound is not None:
                 basic_strategy_info.append([cur_lap, next_compound, 0, 0.0])
 
         # reset VSE for subsequent race simulation
         self.reset()
+
+        # reset original VSE type
+        self.vse_pars["vse_type"][driver.initials] = orig_vse
 
         return basic_strategy_info
 

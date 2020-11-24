@@ -20,7 +20,7 @@ class ElectricCar(Car):
     def __init__(self, car_pars: dict, tireset_compound_start: str, tireset_age_start: int, tireset_pars: dict) -> None:
         # check inputs
         if car_pars["energy"] is None or car_pars["energy_perlap"] is None:
-            raise ValueError("Parameters energy and energy_perlap must be set for an electric car!")
+            raise RuntimeError("Parameters energy and energy_perlap must be set for an electric car!")
 
         # initialize base class object
         Car.__init__(self,
@@ -56,7 +56,7 @@ class ElectricCar(Car):
         # calculate current consumption
         if self.auto_consumption_adjust:
             if remaining_laps is None:
-                raise ValueError("Remaining laps must be given if automatic consumption adjustment is active!")
+                raise RuntimeError("Remaining laps must be given if automatic consumption adjustment is active!")
 
             energy_perlap = self.energy / remaining_laps
             energy_perlap = max(energy_perlap, self.energy_perlap)
@@ -73,7 +73,7 @@ class ElectricCar(Car):
             # consumption during FCY phases is calculated on the basis of the "normal" consumption
             self.energy -= (lap_frac_normal + (1.0 - lap_frac_normal) * self.mult_consumption_sc) * self.energy_perlap
         else:
-            raise ValueError("Unknown FCY phase type!")
+            raise RuntimeError("Unknown FCY phase type!")
 
         # print warning if energy is below 0kWh
         if self.energy < 0.0:

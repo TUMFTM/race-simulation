@@ -137,8 +137,7 @@ def main(sim_opts: dict, pars_in: dict) -> tuple:
                                          t_pit_charge_perkwh=pars_in['driver_pars']["t_pit_charge_perkwh"],
                                          fcy_phases=None,
                                          t_lap_sc=pars_in['track_pars']["t_lap_sc"],
-                                         t_lap_fcy=pars_in['track_pars']["t_lap_fcy"],
-                                         deact_pitstop_warn=False)[0][-1]
+                                         t_lap_fcy=pars_in['track_pars']["t_lap_fcy"])[0][-1]
 
                 t_race_fastest[cur_no_pitstops].append([tuple(strategy_stints), t_race_tmp])
 
@@ -228,8 +227,7 @@ def main(sim_opts: dict, pars_in: dict) -> tuple:
                                                                       "t_pit_charge_perkwh"],
                                                                   fcy_phases=sim_opts["fcy_phases"],
                                                                   t_lap_sc=pars_in['track_pars']["t_lap_sc"],
-                                                                  t_lap_fcy=pars_in['track_pars']["t_lap_fcy"],
-                                                                  deact_pitstop_warn=False)[0][-1]
+                                                                  t_lap_fcy=pars_in['track_pars']["t_lap_fcy"])[0][-1]
 
     # ------------------------------------------------------------------------------------------------------------------
     # POSTPROCESSING (FULL FACTORIAL) ----------------------------------------------------------------------------------

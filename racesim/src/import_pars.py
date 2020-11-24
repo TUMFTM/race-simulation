@@ -20,7 +20,7 @@ def import_pars(use_print: bool, use_vse: bool, race_pars_file: str, mcs_pars_fi
     pars_in = {}
 
     if not parser.read(par_file_path):
-        raise ValueError('Specified race parameter config file does not exist or is empty!')
+        raise RuntimeError('Specified race parameter config file does not exist or is empty!')
 
     pars_in["race_pars"] = json.loads(parser.get('RACE_PARS', 'race_pars'))
     pars_in["monte_carlo_pars"] = json.loads(parser.get('MONTE_CARLO_PARS', 'monte_carlo_pars'))
@@ -65,7 +65,7 @@ def import_pars(use_print: bool, use_vse: bool, race_pars_file: str, mcs_pars_fi
     par_file_path = os.path.join(repo_path, "racesim", "input", "parameters", mcs_pars_file)
 
     if not parser.read(par_file_path):
-        raise ValueError('Specified MCS parameter config file does not exist or is empty!')
+        raise RuntimeError('Specified MCS parameter config file does not exist or is empty!')
 
     season_tmp = pars_in["race_pars"]["season"]  # get currently simulated season to load the correct parameters
 
@@ -110,30 +110,53 @@ def import_pars(use_print: bool, use_vse: bool, race_pars_file: str, mcs_pars_fi
 
         # SUPERVISED VSE (TIRE CHANGE DECISION) ------------------------------------------------------------------------
         # preprocessor
-        if not os.path.isfile(os.path.join(vse_path, 'preprocessor_tirechange.pkl')):
-            raise ValueError("Preprocessor file is not available in the input path (preprocessor_tirechange.pkl)!")
+        if not os.path.isfile(os.path.join(vse_path, 'preprocessor_supervised_tirechange.pkl')):
+            raise RuntimeError("Preprocessor file is not available in the input path"
+                               " (preprocessor_supervised_tirechange.pkl)!")
         else:
-            vse_paths["supervised_preprocessor_tc"] = os.path.join(vse_path, 'preprocessor_tirechange.pkl')
+            vse_paths["supervised_preprocessor_tc"] = os.path.join(vse_path, 'preprocessor_supervised_tirechange.pkl')
 
         # NN model
-        if not os.path.isfile(os.path.join(vse_path, 'nn_tirechange.tflite')):
-            raise ValueError("NN model file is not available in the input path (nn_tirechange.tflite)!")
+        if not os.path.isfile(os.path.join(vse_path, 'nn_supervised_tirechange.tflite')):
+            raise RuntimeError("NN model file is not available in the input path (nn_supervised_tirechange.tflite)!")
         else:
-            vse_paths["supervised_nnmodel_tc"] = os.path.join(vse_path, 'nn_tirechange.tflite')
+            vse_paths["supervised_nnmodel_tc"] = os.path.join(vse_path, 'nn_supervised_tirechange.tflite')
 
         # SUPERVISED VSE (COMPOUND CHOICE) -----------------------------------------------------------------------------
         # preprocessor
-        if not os.path.isfile(os.path.join(vse_path, 'preprocessor_compoundchoice.pkl')):
-            raise ValueError("Preprocessor file is not available in the input path"
-                             " (preprocessor_compoundchoice.pkl)!")
+        if not os.path.isfile(os.path.join(vse_path, 'preprocessor_supervised_compoundchoice.pkl')):
+            raise RuntimeError("Preprocessor file is not available in the input path"
+                               " (preprocessor_supervised_compoundchoice.pkl)!")
         else:
-            vse_paths["supervised_preprocessor_cc"] = os.path.join(vse_path, 'preprocessor_compoundchoice.pkl')
+            vse_paths["supervised_preprocessor_cc"] = \
+                os.path.join(vse_path, 'preprocessor_supervised_compoundchoice.pkl')
 
         # NN model
-        if not os.path.isfile(os.path.join(vse_path, 'nn_compoundchoice.tflite')):
-            raise ValueError("NN model file is not available in the input path (nn_compoundchoice.tflite)!")
+        if not os.path.isfile(os.path.join(vse_path, 'nn_supervised_compoundchoice.tflite')):
+            raise RuntimeError("NN model file is not available in the input path"
+                               " (nn_supervised_compoundchoice.tflite)!")
         else:
-            vse_paths["supervised_nnmodel_cc"] = os.path.join(vse_path, 'nn_compoundchoice.tflite')
+            vse_paths["supervised_nnmodel_cc"] = os.path.join(vse_path, 'nn_supervised_compoundchoice.tflite')
+
+        # REINFORCEMENT VSE --------------------------------------------------------------------------------------------
+        # preprocessor
+        preprocessor_pkl = 'preprocessor_reinforcement_%s_%i.pkl' % (pars_in["track_pars"]["name"],
+                                                                     pars_in["race_pars"]["season"])
+
+        if not os.path.isfile(os.path.join(vse_path, preprocessor_pkl)) \
+                and 'reinforcement' in [pars_in['vse_pars']['vse_type'][x] for x in pars_in['vse_pars']['vse_type']]:
+            raise RuntimeError("Preprocessor file is not available in the input path (%s)!" % preprocessor_pkl)
+        else:
+            vse_paths["reinf_preprocessor"] = os.path.join(vse_path, preprocessor_pkl)
+
+        # NN model
+        nn_tflite = "nn_reinforcement_%s_%i.tflite" % (pars_in["track_pars"]["name"], pars_in["race_pars"]["season"])
+
+        if not os.path.isfile(os.path.join(vse_path, nn_tflite)) \
+                and 'reinforcement' in [pars_in['vse_pars']['vse_type'][x] for x in pars_in['vse_pars']['vse_type']]:
+            raise RuntimeError("NN model file is not available in the input path (%s)!" % nn_tflite)
+        else:
+            vse_paths["reinf_nnmodel"] = os.path.join(vse_path, nn_tflite)
 
     else:
         vse_paths = None

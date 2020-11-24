@@ -26,8 +26,7 @@ def calc_racetimes_basic(t_base: float,
                          t_pitdrive_outlap_sc: float = None,
                          fcy_phases: list = None,
                          t_lap_sc: float = None,
-                         t_lap_fcy: float = None,
-                         deact_pitstop_warn: bool = False) -> tuple:
+                         t_lap_fcy: float = None) -> tuple:
 
     """
     author:
@@ -104,8 +103,6 @@ def calc_racetimes_basic(t_base: float,
     :param t_lap_fcy:               [s] lap time during FCY (full course yellow) phase (required if fcy_phases is not
                                     None)
     :type t_lap_fcy:                float
-    :param deact_pitstop_warn:      Flag to deactivate the pit stop warning (for reinforcement training)
-    :type deact_pitstop_warn:       bool
 
     .. outputs::
     :return t_race_laps:            [s] cumulated lap times (i.e. race times) after every lap
@@ -123,33 +120,34 @@ def calc_racetimes_basic(t_base: float,
 
     # check strategy input
     if len(strategy) == 0:
-        raise ValueError('Start compound information must be provided!')
-    elif len(strategy) == 1 and not deact_pitstop_warn:
+        raise RuntimeError('Start compound information must be provided!')
+    elif len(strategy) == 1:
         print('WARNING: There is no pitstop given in the strategy data!')
 
     if not all([len(x) == 4 for x in strategy]):
-        raise ValueError('Inserted strategy data does not contain [inlap, compound, age, refueling] for all pit stops!')
+        raise RuntimeError('Inserted strategy data does not contain [inlap, compound, age, refueling] for all pit'
+                           ' stops!')
 
     # check if inlaps within strategy input appear in a rising order
     if not all([x[0] < y[0] for x, y in zip(strategy, strategy[1:])]):
-        raise ValueError('The given inlaps are not sorted in a rising order!')
+        raise RuntimeError('The given inlaps are not sorted in a rising order!')
 
     # check drivetype and consumption
     if drivetype == 'combustion':
         if m_fuel_init is None or b_fuel_perlap is None:
-            raise ValueError('Parameters m_fuel_init and b_fuel_perlap are required for a combustion car!')
+            raise RuntimeError('Parameters m_fuel_init and b_fuel_perlap are required for a combustion car!')
     elif drivetype == 'electric':
         # electric consumption not required since the car does not lose any mass
         pass
     else:
-        raise ValueError('Unknown drivetype!')
+        raise RuntimeError('Unknown drivetype!')
 
     # check possible refueling/recharging during pitstops
     if any(x[3] != 0.0 for x in strategy):
         if drivetype == 'combustion' and t_pit_refuel_perkg is None:
-            raise ValueError('Refueling is set but t_pit_refuel_perkg is not set!')
+            raise RuntimeError('Refueling is set but t_pit_refuel_perkg is not set!')
         elif drivetype == 'electric' and t_pit_charge_perkwh is not None:
-            raise ValueError('Recharging is set but t_pit_charge_perkwh is not set!')
+            raise RuntimeError('Recharging is set but t_pit_charge_perkwh is not set!')
 
     # check FCY phases
     if fcy_phases is not None and (t_lap_fcy is None or t_lap_sc is None):
@@ -159,19 +157,19 @@ def calc_racetimes_basic(t_base: float,
         t_lap_sc = t_base * 1.6
 
     if fcy_phases is not None and any(False if x[2] in ['SC', 'VSC'] else True for x in fcy_phases):
-        raise ValueError("Unknown FCY phase type!")
+        raise RuntimeError("Unknown FCY phase type!")
 
     # check if FCY phase list is sorted by start race progress (requirement for proper calculation of start and stop
     # race times later)
     if fcy_phases is not None and not all([x[0] < y[0] for x, y in zip(fcy_phases, fcy_phases[1:])]):
-        raise ValueError('The given FCY phases are not sorted in a rising order!')
+        raise RuntimeError('The given FCY phases are not sorted in a rising order!')
 
     # check if pit time losses are supplied in case of FCY phases
     if fcy_phases is not None \
             and (t_pitdrive_inlap_fcy is None or t_pitdrive_outlap_fcy is None
                  or t_pitdrive_inlap_sc is None or t_pitdrive_outlap_sc is None):
-        raise ValueError("t_pitdrive_inlap_fcy/sc and t_pitdrive_outlap_fcy/sc must all be supplied if there are FCY"
-                         " phases to consider!")
+        raise RuntimeError("t_pitdrive_inlap_fcy/sc and t_pitdrive_outlap_fcy/sc must all be supplied if there are FCY"
+                           " phases to consider!")
 
     # assure FCY phases end within the race
     if fcy_phases is not None:
@@ -222,8 +220,9 @@ def calc_racetimes_basic(t_base: float,
                                   compound=comp_cur_stint,
                                   tire_pars=tire_pars)
 
-        # consider cold tires in the first lap of a stint
-        t_laps[cur_inlap] += tire_pars["t_add_coldtires"]
+        # consider cold tires in the first lap of a stint (if inlap is not the last lap of the race)
+        if cur_inlap < tot_no_laps:
+            t_laps[cur_inlap] += tire_pars["t_add_coldtires"]
 
     # ------------------------------------------------------------------------------------------------------------------
     # CONSIDER PIT STOPS -----------------------------------------------------------------------------------------------
@@ -311,7 +310,7 @@ def calc_racetimes_basic(t_base: float,
         elif cur_phase[2] == 'VSC':
             t_pit_inlap += t_pitdrive_inlap_fcy
         else:
-            raise ValueError("Unknown FCY phase type!")
+            raise RuntimeError("Unknown FCY phase type!")
 
         # add pit stop loss to t_laps_pit
         t_laps_pit[cur_inlap - 1] += t_pit_inlap
@@ -351,7 +350,7 @@ def calc_racetimes_basic(t_base: float,
         elif cur_phase[2] == 'VSC':
             t_pit_outlap += t_pitdrive_outlap_fcy
         else:
-            raise ValueError("Unknown FCY phase type!")
+            raise RuntimeError("Unknown FCY phase type!")
 
         # add pit stop loss to t_laps_pit
         t_laps_pit[cur_inlap] += t_pit_outlap

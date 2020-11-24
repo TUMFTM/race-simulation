@@ -210,16 +210,16 @@ class MonteCarlo(object):
                 elif cur_phase_1[2] == 'SC':
                     cur_min_dist = self.monte_carlo_pars["min_dist_sc"]
                 else:
-                    raise ValueError("Unknown FCY phase type!")
+                    raise RuntimeError("Unknown FCY phase type!")
             elif fcy_data["domain"] == 'time':
                 if cur_phase_1[2] == 'VSC':
                     cur_min_dist = self.monte_carlo_pars["min_dist_vsc"] * (self.track.t_q + self.track.t_gap_racepace)
                 elif cur_phase_1[2] == 'SC':
                     cur_min_dist = self.monte_carlo_pars["min_dist_sc"] * (self.track.t_q + self.track.t_gap_racepace)
                 else:
-                    raise ValueError("Unknown FCY phase type!")
+                    raise RuntimeError("Unknown FCY phase type!")
             else:
-                raise ValueError("Unknown domain type!")
+                raise RuntimeError("Unknown domain type!")
 
             # check for intersections with phases coming after the current one in the list
             for cur_phase_2 in fcy_data["phases"][idx_1 + 1:]:
@@ -239,7 +239,7 @@ class MonteCarlo(object):
                               if cur_driver.initials == self.monte_carlo_pars['ref_driver']), None)
 
         if presim_driver is None:
-            raise ValueError('Reference driver was not found, check driver initials!')
+            raise RuntimeError('Reference driver was not found, check driver initials!')
 
         # determine basic strategy if VSE is used
         if self.vse is not None:
@@ -248,6 +248,13 @@ class MonteCarlo(object):
                                                   tot_no_laps=self.race_pars["tot_no_laps"],
                                                   fcy_phases=self.fcy_data["phases"],
                                                   location=self.track.name,
+                                                  t_pit_tirechange_min=self.track.t_pit_tirechange_min,
+                                                  t_pitdrive_inlap=self.track.t_pitdrive_inlap,
+                                                  t_pitdrive_outlap=self.track.t_pitdrive_outlap,
+                                                  t_pitdrive_inlap_fcy=self.track.t_pitdrive_inlap_fcy,
+                                                  t_pitdrive_outlap_fcy=self.track.t_pitdrive_outlap_fcy,
+                                                  t_pitdrive_inlap_sc=self.track.t_pitdrive_inlap_sc,
+                                                  t_pitdrive_outlap_sc=self.track.t_pitdrive_outlap_sc,
                                                   mult_tiredeg_fcy=presim_driver.tireset_pars["mult_tiredeg_fcy"],
                                                   mult_tiredeg_sc=presim_driver.tireset_pars["mult_tiredeg_sc"])
         else:
@@ -280,8 +287,7 @@ class MonteCarlo(object):
                                  t_pit_charge_perkwh=presim_driver.car.t_pit_charge_perkwh,
                                  fcy_phases=self.fcy_data["phases"],
                                  t_lap_sc=self.track.t_lap_sc,
-                                 t_lap_fcy=self.track.t_lap_fcy,
-                                 deact_pitstop_warn=False)
+                                 t_lap_fcy=self.track.t_lap_fcy)
 
         t_race_lapwise_tmp = np.insert(t_race_lapwise_tmp, 0, 0.0)  # add race time 0.0s for lap 0
 
@@ -422,7 +428,7 @@ class MonteCarlo(object):
 
             # check lap_frac_normal
             if not 0.0 <= lap_frac_normal <= 1.0:
-                raise ValueError("lap_frac_normal is not within the range[0,1]!")
+                raise RuntimeError("lap_frac_normal is not within the range[0,1]!")
 
         else:
             lap_frac_normal = 1.0

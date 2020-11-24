@@ -113,7 +113,7 @@ def opt_strategy_basic(tot_no_laps: int,
     tmp = prob.solve(solver='ECOS_BB')
 
     if not np.isinf(tmp):
-        stint_lengths = np.round(x.value).astype(np.int)
+        stint_lengths = np.round(x.value).astype(np.int32)
     else:
         # no solution found
         stint_lengths = None

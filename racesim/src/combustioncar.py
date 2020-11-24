@@ -20,7 +20,7 @@ class CombustionCar(Car):
     def __init__(self, car_pars: dict, tireset_compound_start: str, tireset_age_start: int, tireset_pars: dict) -> None:
         # check inputs
         if car_pars["m_fuel"] is None or car_pars["b_fuel_perlap"] is None:
-            raise ValueError("Parameters m_fuel and b_fuel_perlap must be set for an electric car!")
+            raise RuntimeError("Parameters m_fuel and b_fuel_perlap must be set for an electric car!")
 
         # initialize base class object
         Car.__init__(self,
@@ -57,7 +57,7 @@ class CombustionCar(Car):
         # calculate current consumption
         if self.auto_consumption_adjust:
             if remaining_laps is None:
-                raise ValueError("Remaining laps must be given if automatic consumption adjustment is active!")
+                raise RuntimeError("Remaining laps must be given if automatic consumption adjustment is active!")
 
             b_fuel_perlap = self.m_fuel / remaining_laps
             b_fuel_perlap = max(b_fuel_perlap, self.b_fuel_perlap)
@@ -74,7 +74,7 @@ class CombustionCar(Car):
             # consumption during FCY phases is calculated on the basis of the "normal" consumption
             self.m_fuel -= (lap_frac_normal + (1.0 - lap_frac_normal) * self.mult_consumption_sc) * self.b_fuel_perlap
         else:
-            raise ValueError("Unknown FCY phase type!")
+            raise RuntimeError("Unknown FCY phase type!")
 
         # print warning if fuel mass is below 0kg
         if self.m_fuel < 0.0:

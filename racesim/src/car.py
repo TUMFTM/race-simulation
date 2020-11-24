@@ -98,7 +98,7 @@ class Car(object):
 
     def __set_t_car(self, x: float) -> None:
         if not 0.0 <= x < 10.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_car = x
     t_car = property(__get_t_car, __set_t_car)
 
@@ -114,7 +114,7 @@ class Car(object):
 
     def __set_p_failure(self, x: float) -> None:
         if not 0.0 <= x <= 0.5:
-            raise ValueError("Failure probability seems too high!", x)
+            raise RuntimeError("Failure probability seems too high!", x)
         self.__p_failure = x
     p_failure = property(__get_p_failure, __set_p_failure)
 
@@ -122,7 +122,7 @@ class Car(object):
 
     def __set_t_pit_tirechange_add(self, x: float) -> None:
         if not 0.0 < x < 5.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_pit_tirechange_add = x
     t_pit_tirechange_add = property(__get_t_pit_tirechange_add, __set_t_pit_tirechange_add)
 
@@ -130,7 +130,7 @@ class Car(object):
 
     def __set_t_pit_var_fisk_pars(self, x: list) -> None:
         if not len(x) == 3:
-            raise ValueError("Length of required fisk parameters is 3, %i parameters were given!" % len(x))
+            raise RuntimeError("Length of required fisk parameters is 3, %i parameters were given!" % len(x))
         self.__t_pit_var_fisk_pars = x
     t_pit_var_fisk_pars = property(__get_t_pit_var_fisk_pars, __set_t_pit_var_fisk_pars)
 
@@ -138,7 +138,7 @@ class Car(object):
 
     def __set_t_pit_tirechange_add_rand_mean(self, x: float) -> None:
         if not 0.0 < x < 5.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_pit_tirechange_add_rand_mean = x
     t_pit_tirechange_add_rand_mean = property(__get_t_pit_tirechange_add_rand_mean,
                                               __set_t_pit_tirechange_add_rand_mean)
@@ -147,7 +147,7 @@ class Car(object):
 
     def __set_m_fuel(self, x: float) -> None:
         if x is not None and not 0.0 <= x <= 115.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__m_fuel = x
     m_fuel = property(__get_m_fuel, __set_m_fuel)
 
@@ -155,7 +155,7 @@ class Car(object):
 
     def __set_b_fuel_perlap(self, x: float) -> None:
         if x is not None and not 0.0 < x < 5.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__b_fuel_perlap = x
     b_fuel_perlap = property(__get_b_fuel_perlap, __set_b_fuel_perlap)
 
@@ -163,7 +163,7 @@ class Car(object):
 
     def __set_t_pit_refuel_perkg(self, x: float) -> None:
         if x is not None and not 0.0 <= x < 5.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_pit_refuel_perkg = x
     t_pit_refuel_perkg = property(__get_t_pit_refuel_perkg, __set_t_pit_refuel_perkg)
 
@@ -171,7 +171,7 @@ class Car(object):
 
     def __set_energy(self, x: float) -> None:
         if x is not None and not 0.0 < x <= 100.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__energy = x
     energy = property(__get_energy, __set_energy)
 
@@ -179,7 +179,7 @@ class Car(object):
 
     def __set_energy_perlap(self, x: float) -> None:
         if x is not None and not 0.0 < x < 5.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__energy_perlap = x
     energy_perlap = property(__get_energy_perlap, __set_energy_perlap)
 
@@ -187,7 +187,7 @@ class Car(object):
 
     def __set_t_pit_charge_perkwh(self, x: float) -> None:
         if x is not None and not 0.0 <= x < 1000.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__t_pit_charge_perkwh = x
     t_pit_charge_perkwh = property(__get_t_pit_charge_perkwh, __set_t_pit_charge_perkwh)
 
@@ -195,7 +195,7 @@ class Car(object):
 
     def __set_mult_consumption_sc(self, x: float) -> None:
         if not 0.0 < x <= 1.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__mult_consumption_sc = x
     mult_consumption_sc = property(__get_mult_consumption_sc, __set_mult_consumption_sc)
 
@@ -203,7 +203,7 @@ class Car(object):
 
     def __set_mult_consumption_fcy(self, x: float) -> None:
         if not 0.0 < x <= 1.0:
-            raise ValueError("Unreasonable value!", x)
+            raise RuntimeError("Unreasonable value!", x)
         self.__mult_consumption_fcy = x
     mult_consumption_fcy = property(__get_mult_consumption_fcy, __set_mult_consumption_fcy)
 

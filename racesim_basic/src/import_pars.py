@@ -16,7 +16,7 @@ def import_pars(use_print: bool, race_pars_file: str) -> dict:
     pars_in = {}
 
     if not parser.read(par_file_path):
-        raise ValueError('Specified race parameter config file does not exist or is empty!')
+        raise RuntimeError('Specified race parameter config file does not exist or is empty!')
 
     pars_in['driver_pars'] = json.loads(parser.get('DRIVER_PARS', 'driver_pars'))
     pars_in['track_pars'] = json.loads(parser.get('TRACK_PARS', 'track_pars'))

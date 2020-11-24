@@ -171,13 +171,9 @@ class VSE_SUPERVISED(object):
         # FEATURE PREPARATION (COMPOUND CHOICE DECISION) ---------------------------------------------------------------
         # --------------------------------------------------------------------------------------------------------------
 
-        # translate location
-        location_tmp = self.preprocessor_cc.transform_cat_dict(X_cat_str=[location], featurename='location')
-
-        # set everything together
         X = np.zeros((no_drivers_tmp, 6))  # currently we have 6 input features
         X[:, 0] = raceprogress
-        X[:, 1] = location_tmp
+        X[:, 1] = self.preprocessor_cc.transform_cat_dict(X_cat_str=[location], featurename='location')
         X[:, 2] = rel_compound_num_nl
         X[:, 3] = remainingtirechanges_nl
         X[:, 4] = used_2compounds_nl
@@ -226,7 +222,7 @@ class VSE_SUPERVISED(object):
             pitstop_probs[idx_driver] = self.nnmodel_tc["interpreter"].get_tensor(self.nnmodel_tc["output_index"])
 
         # get indices of the drivers that have a predicted pitstop probability above 50%
-        idxs_driver_pitstop = np.flatnonzero(np.round(pitstop_probs)).tolist()
+        idxs_driver_pitstop = list(np.flatnonzero(np.round(pitstop_probs)))
 
         # assure that every driver used two different compounds in a race (as soon as a raceprogress of 90% is exceeded)
         if raceprogress_prevlap > 0.9 and not all(used_2compounds):
@@ -234,8 +230,10 @@ class VSE_SUPERVISED(object):
                 if not used_2compounds[idx_driver] \
                         and bool_driving[idx_driver] \
                         and idx_driver not in idxs_driver_pitstop:
+
                     idxs_driver_pitstop.append(idx_driver)
-                    print("WARNING: Had to enforce a pit stop for supervised VSE above 90%% race progress!")
+                    print("WARNING: Had to enforce a pit stop for supervised VSE above 90%% race progress (driver at"
+                          " index %i of reinforcement drivers)!" % idx_driver)
 
             idxs_driver_pitstop.sort()
 
@@ -262,7 +260,7 @@ class VSE_SUPERVISED(object):
                     self.nnmodel_cc["interpreter"].get_tensor(self.nnmodel_cc["output_index"])
 
             # get array with indices of relative compounds sorted by highest -> lowest probability
-            idxs_rel_compound_sorted = np.argsort(-rel_compound_probs, axis=1).tolist()
+            idxs_rel_compound_sorted = list(np.argsort(-rel_compound_probs, axis=1))
 
             # make sure that VSE chooses only from available compounds (only 2 different compounds were available before
             # 2016, some of the compounds might not be parameterized in the current race for some drivers) -> use the

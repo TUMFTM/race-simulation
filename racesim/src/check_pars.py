@@ -16,7 +16,7 @@ def check_pars(sim_opts: dict, pars_in: dict) -> None:
 
     p_grids = [pars_in["driver_pars"][initials]["p_grid"] for initials in pars_in["driver_pars"]]
     if not len(set(p_grids)) == len(p_grids):
-        raise ValueError("Grid positions are not unique!")
+        raise RuntimeError("Grid positions are not unique!")
 
     if sim_opts["use_print"]:
         print("INFO: FCY phases for the race simulation were set as follows:",
@@ -25,41 +25,41 @@ def check_pars(sim_opts: dict, pars_in: dict) -> None:
     if pars_in["event_pars"]["fcy_data"]["phases"]:
         # check domain type
         if pars_in["event_pars"]["fcy_data"]["domain"] not in ['progress', 'time']:
-            raise ValueError("Unknown FCY domain type!")
+            raise RuntimeError("Unknown FCY domain type!")
 
         # check FCY phases for valid values and type
         for cur_phase in pars_in["event_pars"]["fcy_data"]["phases"]:
             # check if phase information is complete
             if not len(cur_phase) == 5:
-                raise ValueError("A FCY phase must contain 5 entries: [start, end, type, SC delay, SC duration]. The"
-                                 " latter 2 must be set null except it is an SC phase given in the time domain!")
+                raise RuntimeError("A FCY phase must contain 5 entries: [start, end, type, SC delay, SC duration]. The"
+                                   " latter 2 must be set null except it is an SC phase given in the time domain!")
 
             # check start and end race progress of FCY phases
             if not cur_phase[0] < cur_phase[1] \
                     or cur_phase[0] < 0.0 \
                     or (pars_in["event_pars"]["fcy_data"]["domain"] == 'progress'
                         and cur_phase[1] > pars_in["race_pars"]["tot_no_laps"]):
-                raise ValueError("Start and end of a FCY phase is unreasonable!")
+                raise RuntimeError("Start and end of a FCY phase is unreasonable!")
 
             # check type of FCY phases
             if cur_phase[2] not in ["SC", "VSC"]:
-                raise ValueError("Unknown FCY phase type!")
+                raise RuntimeError("Unknown FCY phase type!")
 
             # check SC delay
             if pars_in["event_pars"]["fcy_data"]["domain"] == 'progress' and cur_phase[3] is not None:
-                raise ValueError("SC delay information must only be given if domain is time!")
+                raise RuntimeError("SC delay information must only be given if domain is time!")
             elif pars_in["event_pars"]["fcy_data"]["domain"] == 'time' and cur_phase[3] is None:
-                raise ValueError("SC delay information must be given if domain is time!")
+                raise RuntimeError("SC delay information must be given if domain is time!")
             elif pars_in["event_pars"]["fcy_data"]["domain"] == 'time' and not 0.0 <= cur_phase[3] <= 100.0:
-                raise ValueError("SC delay seems not to have a valid length!")
+                raise RuntimeError("SC delay seems not to have a valid length!")
 
             # check SC duration
             if pars_in["event_pars"]["fcy_data"]["domain"] == 'progress' and cur_phase[4] is not None:
-                raise ValueError("SC duration information must only be given if domain is time!")
+                raise RuntimeError("SC duration information must only be given if domain is time!")
             elif pars_in["event_pars"]["fcy_data"]["domain"] == 'time' and cur_phase[4] is None:
-                raise ValueError("SC duration information must be given if domain is time!")
+                raise RuntimeError("SC duration information must be given if domain is time!")
             elif pars_in["event_pars"]["fcy_data"]["domain"] == 'time' and not 2 <= cur_phase[4] <= 10:
-                raise ValueError("SC duration seems not to have a valid length!")
+                raise RuntimeError("SC duration seems not to have a valid length!")
 
     if sim_opts["use_print"]:
         print("INFO: Retirements for the race simulation were set as follows:",
@@ -68,7 +68,7 @@ def check_pars(sim_opts: dict, pars_in: dict) -> None:
     if pars_in["event_pars"]["retire_data"]["retirements"]:
         # check domain type
         if pars_in["event_pars"]["retire_data"]["domain"] not in ['progress', 'time']:
-            raise ValueError("Unknown retirements domain type!")
+            raise RuntimeError("Unknown retirements domain type!")
 
         # check retirement data for valid initials and start points
         for cur_retirement in pars_in["event_pars"]["retire_data"]["retirements"]:
@@ -76,8 +76,8 @@ def check_pars(sim_opts: dict, pars_in: dict) -> None:
                     or cur_retirement[1] < 0.0 \
                     or (pars_in["event_pars"]["retire_data"]["domain"] == 'progress'
                         and cur_retirement[1] > pars_in["race_pars"]["tot_no_laps"]):
-                raise ValueError("A retiring driver does not participate in the race or the start of his retirement"
-                                 " is unreasonable!")
+                raise RuntimeError("A retiring driver does not participate in the race or the start of his retirement"
+                                   " is unreasonable!")
 
     if sim_opts["use_print"] and sim_opts["use_vse"]:
         print("INFO: Using VSE (virtual strategy engineer) to take tire change decisions!")
@@ -92,11 +92,18 @@ def check_pars(sim_opts: dict, pars_in: dict) -> None:
                                for x in pars_in["vse_pars"]["available_compounds"])
 
         if not 2 <= no_dry_compounds <= 3:
-            raise ValueError("VSE is trained for 2 to 3 different dry compounds but %i were given!" % no_dry_compounds)
+            raise RuntimeError("VSE is trained for 2 to 3 different dry compounds but %i were given!"
+                               % no_dry_compounds)
 
         # assure that every driver has at least 2 dry compounds available (i.e. parameterized)
         for initials in pars_in["driver_pars"]:
             if not len([x for x in pars_in["tireset_pars"][initials]
                         if x in ["A1", "A2", "A3", "A4", "A5", "A6", "A7"]]) >= 2:
-                raise ValueError("There must be at least two different tire compounds available for every driver! This"
-                                 " is not fulfilled for %s!" % initials)
+                raise RuntimeError("There must be at least two different tire compounds available for every driver!"
+                                   " This is not fulfilled for %s!" % initials)
+
+        # assure that chosen VSE types are supported
+        for key in pars_in["vse_pars"]["vse_type"]:
+            if pars_in["vse_pars"]["vse_type"][key] \
+                    not in ["supervised", "reinforcement", "basestrategy", "realstrategy", "reinforcement_training"]:
+                raise RuntimeError("Unknown VSE type %s!" % pars_in["vse_pars"]["vse_type"][key])
