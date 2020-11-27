@@ -145,7 +145,8 @@ def import_pars(use_print: bool, use_vse: bool, race_pars_file: str, mcs_pars_fi
 
         if not os.path.isfile(os.path.join(vse_path, preprocessor_pkl)) \
                 and 'reinforcement' in [pars_in['vse_pars']['vse_type'][x] for x in pars_in['vse_pars']['vse_type']]:
-            raise RuntimeError("Preprocessor file is not available in the input path (%s)!" % preprocessor_pkl)
+            raise RuntimeError("Preprocessor file is not available in the input path (%s)! Was it possibly one of the"
+                               " 11 (partly) wet races (see readme)?" % preprocessor_pkl)
         else:
             vse_paths["reinf_preprocessor"] = os.path.join(vse_path, preprocessor_pkl)
 
@@ -154,7 +155,8 @@ def import_pars(use_print: bool, use_vse: bool, race_pars_file: str, mcs_pars_fi
 
         if not os.path.isfile(os.path.join(vse_path, nn_tflite)) \
                 and 'reinforcement' in [pars_in['vse_pars']['vse_type'][x] for x in pars_in['vse_pars']['vse_type']]:
-            raise RuntimeError("NN model file is not available in the input path (%s)!" % nn_tflite)
+            raise RuntimeError("NN model file is not available in the input path (%s)! Was it possibly one of the"
+                               " 11 (partly) wet races (see readme)?" % nn_tflite)
         else:
             vse_paths["reinf_nnmodel"] = os.path.join(vse_path, nn_tflite)
 
