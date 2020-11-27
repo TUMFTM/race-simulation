@@ -26,7 +26,7 @@ contain .csv files with lap times, race times, and positions in each lap.
 Use the provided `requirements.txt` in the root directory of this repo, in order to install all required modules.\
 `pip3 install -r /path/to/requirements.txt`
 
-The code is developed with Python 3.8 on Windows 10 and tested with Python 3.8 on Ubuntu.
+The code was developed with Python 3.8 on Windows 10 and tested with Python 3.8 on Ubuntu.
 
 ## Solutions for possible installation problems (Windows)
 `cvxpy`, `cython` or any other package requires a `Visual C++ compiler` -> Download the build tools for Visual Studio
@@ -69,10 +69,11 @@ files are contained in `/racesim/input/parameters`.
 The RL VSE must be trained specifically for each race. This is possible by executing the `main_train_rl_agent_dqn.py`
 script. The according source code for the setup of the RL environment etc. can be found in the
 `machine_learning_rl_training` directory. After training, please copy the output files from that directory to
-`racesim/input/vse` to make the trained DQN (deep Q-network) available to the race simulation.
+`racesim/input/vse` to make the trained DQN (deep Q-network) available to the race simulation. Pre-trained reinforcement
+VSE are included for all available races except (partly) wet races.
 
-For more information on the VSE, please refer to our paper `Virtual Strategy Engineer: Using Artificial Neural Networks
-for Making Race Strategy Decisions in Circuit Motorsport` (more bibliographic details are listed below).
+For more information on the VSE, we refer to our paper `Virtual Strategy Engineer: Using Artificial Neural Networks for
+Making Race Strategy Decisions in Circuit Motorsport` (more bibliographic details are listed below).
 
 ## Running the race simulation
 If the requirements are installed on the system, follow these steps:
@@ -94,7 +95,7 @@ reproduction of the real races in the simulation is practically impossible.
 If activated in the bottom part of `main_racesim.py`, the virtual strategy engineer (VSE) determines the race strategies
 of the race participants. It eases the handling for the user of the race simulation since he must not determine the
 strategies of all race participants manually. Several variants of the VSE are available, which can be set separately for
-each driver at the bottom of the race parameter files (.ini):
+each driver at the bottom of the race parameter files (`/racesim/input/parameters/*.ini`):
 - base strategy (`basestrategy`)
 - real strategy (`realstrategy`)
 - VSE trained on real-world data (`supervised`)
@@ -107,8 +108,24 @@ the real-world races are applied (stored at the bottom of the parameter files). 
 based on two artificial neural networks that were trained on real-world timing data to make the race strategy decisions.
 Please keep in mind that our VSE is focused on Formula 1. Thus, it only determines whether a driver should come into the
 pits and which tire compound should be fitted to the car. The `reinforcement` option activates a VSE that was trained
-within the race simulation based on a reinforcement learning (RL) approach. Before activating this option, this VSE must
-be trained at first, see previous section.
+within the race simulation based on a reinforcement learning (RL) approach.
+
+Before activating the `reinforcement` option, consider performing your own training instead of using one of the pre-
+trained reinforcement VSE, see previous section. Pre-trained reinforcement VSE are included for all available races
+except (partly) wet races. This is because the VSE is currently only implemented to handle dry compounds. The training
+was performed against the supervised VSE. However, the resulting NNs werde not checked in terms of decision behavior. It
+can therefore be suboptimal! The following eleven races were (partly) wet:
+- Budapest 2014
+- Suzuka 2014
+- Austin 2015
+- Silverstone 2016
+- Monte Carlo 2016
+- Sao Paulo 2016
+- Silverstone 2016
+- Shanghai 2017
+- Singapore 2017
+- Hockenheim 2018
+- Hockenheim 2019
 
 # Publications
 ## Detailed description of the race simulation (deterministic parts)

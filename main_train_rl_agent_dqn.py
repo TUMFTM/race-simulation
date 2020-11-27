@@ -30,6 +30,7 @@ from tf_agents.policies import random_tf_policy
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.trajectories import trajectory
 from tf_agents.utils import common
+import racesim
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -37,11 +38,11 @@ from tf_agents.utils import common
 # ----------------------------------------------------------------------------------------------------------------------
 
 # environment parameters
-race = 'Shanghai_2019'     # set race (see racesim/input/parameters for possible races)
+race = "Shanghai_2019"  # set race (see racesim/input/parameters for possible races)
 # VSE type for other drivers: 'basestrategy', 'realstrategy', 'supervised', 'reinforcement' (if already available),
 # 'multi_agent' (if VSE should learn for all drivers at once)
-vse_others = 'supervised'
-mcs_pars_file = 'pars_mcs.ini'  # parameter file for Monte Carlo parameters
+vse_others = "supervised"
+mcs_pars_file = "pars_mcs.ini"  # parameter file for Monte Carlo parameters
 
 # hyperparameters
 num_iterations = 250_000
@@ -66,7 +67,7 @@ num_eval_episodes = 100
 calculate_final_positions = False  # activate or deactivate evaluation after training
 num_races_postproc = 10_000
 # VSE type for other drivers: 'basestrategy', 'realstrategy', 'supervised', 'reinforcement' (if already available)
-vse_others_postproc = 'supervised'
+vse_others_postproc = "supervised"
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -79,10 +80,26 @@ if vse_others == "multi_agent" and calculate_final_positions:
     calculate_final_positions = False
 
 # ----------------------------------------------------------------------------------------------------------------------
-# ENVIRONMENT ----------------------------------------------------------------------------------------------------------
+# CHECK FOR WET RACE ---------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------
 
+# create race parameter file name
 race_pars_file = 'pars_%s.ini' % race
+
+# load parameter file
+pars_in = racesim.src.import_pars.import_pars(use_print=False,
+                                              use_vse=False,
+                                              race_pars_file=race_pars_file,
+                                              mcs_pars_file=mcs_pars_file)[0]
+
+# loop through drivers and check for intermediate or wet tire compounds in real race
+for driver in pars_in["driver_pars"]:
+    if any([True if strat[1] in ["I", "W"] else False for strat in pars_in["driver_pars"][driver]["strategy_info"]]):
+        raise RuntimeError("Cannot train for current race %s because it was a (partly) wet race!" % race)
+
+# ----------------------------------------------------------------------------------------------------------------------
+# ENVIRONMENT ----------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------
 
 if vse_others == 'multi_agent':
     train_py_env = machine_learning_rl_training.src.rl_environment_multi_agent.\

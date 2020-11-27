@@ -233,7 +233,7 @@ class VSE_SUPERVISED(object):
 
                     idxs_driver_pitstop.append(idx_driver)
                     print("WARNING: Had to enforce a pit stop for supervised VSE above 90%% race progress (driver at"
-                          " index %i of reinforcement drivers)!" % idx_driver)
+                          " index %i of supervised drivers)!" % idx_driver)
 
             idxs_driver_pitstop.sort()
 
