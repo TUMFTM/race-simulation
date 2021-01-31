@@ -58,7 +58,9 @@ class VSE(object):
 
     def __init__(self,
                  vse_paths: dict,
-                 vse_pars: dict) -> None:
+                 vse_pars: dict,
+                 location: str,
+                 ref_driver: str) -> None:
 
         # initialize known variables (avail_dry_compounds should be solely used for the compound choice NN!)
         self.vse_pars = vse_pars
@@ -77,38 +79,82 @@ class VSE(object):
         self.cache_ahead_preprevlap = None
         self.cache_position_bef_pit_prevlap = None
 
+        # during reinforcement training, the basic strategy determination must be performed by another VSE -> supervised
+        # VSE is the favorite (it does not work for new/unknown tracks), followed by reinforcement VSE, base strategy
+        # VSE, and real strategy VSE
+        if any(True if self.vse_pars["vse_type"][key] == 'reinforcement_training' else False
+               for key in self.vse_pars["vse_type"]):
+            reinf_train_vse_still_required = True
+        else:
+            reinf_train_vse_still_required = False
+
         # create supervised VSE (if indicated) -------------------------------------------------------------------------
-        if any(True if self.vse_pars["vse_type"][key] == 'supervised' else False for key in self.vse_pars["vse_type"]) \
-                or any(True if self.vse_pars["vse_type"][key] == 'reinforcement_training' else False
-                       for key in self.vse_pars["vse_type"]):
+        if any(True if self.vse_pars["vse_type"][key] == 'supervised' else False for key in self.vse_pars["vse_type"]):
             self.vse_supervised = VSE_SUPERVISED(preprocessor_cc_path=vse_paths["supervised_preprocessor_cc"],
                                                  preprocessor_tc_path=vse_paths["supervised_preprocessor_tc"],
                                                  nnmodel_cc_path=vse_paths["supervised_nnmodel_cc"],
                                                  nnmodel_tc_path=vse_paths["supervised_nnmodel_tc"])
+
+            # check if track is known to supervised VSE
+            if location not in self.vse_supervised.preprocessor_cc.cat_dict["location"]:
+                raise RuntimeError("Location %s is not known to supervised VSE, set another VSE type!" % location)
+        elif reinf_train_vse_still_required:
+            self.vse_supervised = VSE_SUPERVISED(preprocessor_cc_path=vse_paths["supervised_preprocessor_cc"],
+                                                 preprocessor_tc_path=vse_paths["supervised_preprocessor_tc"],
+                                                 nnmodel_cc_path=vse_paths["supervised_nnmodel_cc"],
+                                                 nnmodel_tc_path=vse_paths["supervised_nnmodel_tc"])
+
+            # check if track is known to supervised VSE
+            if location not in self.vse_supervised.preprocessor_cc.cat_dict["location"]:
+                self.vse_supervised = None
         else:
             self.vse_supervised = None
+
+        if self.vse_supervised is not None:
+            reinf_train_vse_still_required = False
 
         # create reinforcement VSE (if indicated) ----------------------------------------------------------------------
         if any(True if self.vse_pars["vse_type"][key] == 'reinforcement' else False
                for key in self.vse_pars["vse_type"]):
             self.vse_reinf = VSE_REINFORCEMENT(preprocessor_path=vse_paths["reinf_preprocessor"],
                                                nnmodel_path=vse_paths["reinf_nnmodel"])
+        elif reinf_train_vse_still_required and os.path.isfile(vse_paths["reinf_preprocessor"]) \
+                and os.path.isfile(vse_paths["reinf_nnmodel"]):
+            self.vse_reinf = VSE_REINFORCEMENT(preprocessor_path=vse_paths["reinf_preprocessor"],
+                                               nnmodel_path=vse_paths["reinf_nnmodel"])
         else:
             self.vse_reinf = None
+
+        if self.vse_reinf is not None:
+            reinf_train_vse_still_required = False
 
         # create base strategy VSE (if indicated) ----------------------------------------------------------------------
         if any(True if self.vse_pars["vse_type"][key] == 'basestrategy' else False
                for key in self.vse_pars["vse_type"]):
             self.vse_base = VSE_BASESTRATEGY(base_strategies=self.vse_pars["base_strategy"])
+        elif reinf_train_vse_still_required and self.vse_pars["base_strategy"][ref_driver] is not None:
+            self.vse_base = VSE_BASESTRATEGY(base_strategies=self.vse_pars["base_strategy"])
         else:
             self.vse_base = None
+
+        if self.vse_base is not None:
+            reinf_train_vse_still_required = False
 
         # create real strategy VSE (if indicated) ----------------------------------------------------------------------
         if any(True if self.vse_pars["vse_type"][key] == 'realstrategy' else False
                for key in self.vse_pars["vse_type"]):
             self.vse_real = VSE_REALSTRATEGY(real_strategies=self.vse_pars["real_strategy"])
+        elif reinf_train_vse_still_required and self.vse_pars["real_strategy"][ref_driver] is not None:
+            self.vse_real = VSE_REALSTRATEGY(real_strategies=self.vse_pars["real_strategy"])
         else:
             self.vse_real = None
+
+        if self.vse_real is not None:
+            reinf_train_vse_still_required = False
+
+        # check if any VSE was loaded
+        if reinf_train_vse_still_required:
+            raise RuntimeError("At least one VSE must be available for the reinforcement training!")
 
     # ------------------------------------------------------------------------------------------------------------------
     # GETTERS / SETTERS ------------------------------------------------------------------------------------------------
@@ -721,11 +767,17 @@ class VSE(object):
         # save original VSE to be able to temporarily replace it in case of reinforcement training
         orig_vse = self.vse_pars["vse_type"][driver.initials]
 
-        if orig_vse == 'reinforcement_training':
-            if self.vse_supervised is None:
-                raise RuntimeError("Supervised VSE is required but was not initialized!")
-
-            self.vse_pars["vse_type"][driver.initials] = 'supervised'
+        if orig_vse == "reinforcement_training":
+            if self.vse_supervised is not None:
+                self.vse_pars["vse_type"][driver.initials] = "supervised"
+            elif self.vse_reinf is not None:
+                self.vse_pars["vse_type"][driver.initials] = "reinforcement"
+            elif self.vse_base is not None:
+                self.vse_pars["vse_type"][driver.initials] = "basestrategy"
+            elif self.vse_real is not None:
+                self.vse_pars["vse_type"][driver.initials] = "realstrategy"
+            else:
+                raise RuntimeError("Another VSE is required for the reinforcement training but was not initialized!")
 
         # --------------------------------------------------------------------------------------------------------------
         # SIMULATE RACE ------------------------------------------------------------------------------------------------

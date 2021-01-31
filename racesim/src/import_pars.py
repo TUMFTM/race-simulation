@@ -37,8 +37,8 @@ def import_pars(use_print: bool, use_vse: bool, race_pars_file: str, mcs_pars_fi
         pars_in["track_pars"]["t_gap_overtake_vel"] = 0.0
 
     if pars_in["track_pars"]["t_drseffect"] is None:
-        print("WARNING: Parameter t_drseffect is None, continuing with 0.0s!")
-        pars_in["track_pars"]["t_drseffect"] = 0.0
+        print("WARNING: Parameter t_drseffect is None, continuing (very conservatively) with -0.1s!")
+        pars_in["track_pars"]["t_drseffect"] = -0.1
 
     # perform sorting of FCY phases and retirements --------------------------------------------------------------------
     # check that we got a list of lists for FCY phases (further checks are performed later on)

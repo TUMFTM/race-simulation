@@ -52,12 +52,11 @@ pkg_resources.require(dependencies)
 # ----------------------------------------------------------------------------------------------------------------------
 
 def main(sim_opts: dict, pars_in: dict) -> tuple:
-
     # ------------------------------------------------------------------------------------------------------------------
     # CREATE ALL POSSIBLE TIRE COMPOUND COMBINATIONS -------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
 
-    strategy_combinations = helper_funcs.src.get_strat_combinations.\
+    strategy_combinations = helper_funcs.src.get_strat_combinations. \
         get_strat_combinations(available_compounds=pars_in['available_compounds'],
                                min_no_pitstops=sim_opts["min_no_pitstops"],
                                max_no_pitstops=sim_opts["max_no_pitstops"],
@@ -69,8 +68,8 @@ def main(sim_opts: dict, pars_in: dict) -> tuple:
     # INITIALIZATION ---------------------------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
 
-    exit_qp = False             # used to exit QP loops in the case that no solution was found in the MIQP
-    t_race_fastest = {}         # t_race_fastest = {cur_no_pitstops: [(strategy), racetime]}
+    exit_qp = False  # used to exit QP loops in the case that no solution was found in the MIQP
+    t_race_fastest = {}  # t_race_fastest = {cur_no_pitstops: [(strategy), racetime]}
     t_race_full_factorial = {}
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -88,7 +87,7 @@ def main(sim_opts: dict, pars_in: dict) -> tuple:
                 tires = [[comp, 0] for comp in cur_comp_strat]
                 tires[0][1] = sim_opts["start_age"]
 
-                opt_stint_lengths = racesim_basic.src.opt_strategy_basic.\
+                opt_stint_lengths = racesim_basic.src.opt_strategy_basic. \
                     opt_strategy_basic(tot_no_laps=pars_in['race_pars']['tot_no_laps'],
                                        tire_pars=pars_in['driver_pars']["tire_pars"],
                                        tires=tires)
@@ -102,18 +101,18 @@ def main(sim_opts: dict, pars_in: dict) -> tuple:
 
                 # set up strategy and calculate final race time
                 laps_tmp = 0
-                strategy = []           # [[inlap, compound, age, refueling], ...]
-                strategy_stints = []    # [stint_length, compound, stint_length, compound, ...]
+                strategy = []  # [[inlap, compound, age, refueling], ...]
+                strategy_stints = []  # [stint_length, compound, stint_length, compound, ...]
 
                 for i in range(cur_no_pitstops + 1):
-                    strategy.append([laps_tmp,          # inlap
-                                     tires[i][0],       # set next compound
-                                     tires[i][1],       # [-] tire age
-                                     0.0])              # [kg or kWh] refueling during pit stop
+                    strategy.append([laps_tmp,  # inlap
+                                     tires[i][0],  # set next compound
+                                     tires[i][1],  # [-] tire age
+                                     0.0])  # [kg or kWh] refueling during pit stop
                     strategy_stints.extend([opt_stint_lengths[i], tires[i][0]])
                     laps_tmp += opt_stint_lengths[i]
 
-                t_race_tmp = racesim_basic.src.calc_racetimes_basic.\
+                t_race_tmp = racesim_basic.src.calc_racetimes_basic. \
                     calc_racetimes_basic(t_base=pars_in['driver_pars']["t_base"],
                                          tot_no_laps=pars_in['race_pars']["tot_no_laps"],
                                          t_lap_sens_mass=pars_in['track_pars']["t_lap_sens_mass"],
@@ -185,10 +184,10 @@ def main(sim_opts: dict, pars_in: dict) -> tuple:
                     strategy = [[0, cur_comp_strat[0], sim_opts["start_age"], 0.0]]
 
                     for i in range(cur_no_pitstops):
-                        strategy.append([idxs_cur_inlaps[i] + 1,    # inlap = idx + 1
-                                         cur_comp_strat[i + 1],     # set next compound
-                                         0,                         # [-] tire age
-                                         0.0])                      # [kg or kWh] refueling during pit stop
+                        strategy.append([idxs_cur_inlaps[i] + 1,  # inlap = idx + 1
+                                         cur_comp_strat[i + 1],  # set next compound
+                                         0,  # [-] tire age
+                                         0.0])  # [kg or kWh] refueling during pit stop
 
                     t_race_full_factorial[cur_no_pitstops][cur_comp_strat][idxs_cur_inlaps] = racesim_basic.src. \
                         calc_racetimes_basic.calc_racetimes_basic(t_base=pars_in['driver_pars']["t_base"],
@@ -283,8 +282,12 @@ if __name__ == '__main__':
     # USER INPUT -------------------------------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
 
-    # set race parameter file name
-    race_pars_file_ = 'pars_YasMarina_2017.ini'
+    # set race parameter file name and if the parameter file is given in the simple format (i.e. specifically for the
+    # basic race simulation) or not (i.e. it is a parameter file intended for the use with the normal race simulation)
+    # -> in the latter case, the parameters will be converted automatically for the given driver initials
+    race_pars_file_ = "pars_YasMarina_2017.ini"
+    simple_format_ = True
+    driver_initials_ = ""  # only relevant if simple_format_ is False
 
     # min_no_pitstops:          set minimum number of pitstops (mostly 1)
     # max_no_pitstops:          set maximum number of pitstops
@@ -320,7 +323,12 @@ if __name__ == '__main__':
     # ------------------------------------------------------------------------------------------------------------------
 
     # load parameters
-    pars_in_ = racesim_basic.src.import_pars.import_pars(use_print=use_print, race_pars_file=race_pars_file_)
+    if simple_format_:
+        pars_in_ = racesim_basic.src.import_pars.import_pars(use_print=use_print, race_pars_file=race_pars_file_)
+    else:
+        pars_in_ = racesim_basic.src.import_ext_params.import_ext_params(use_print=use_print,
+                                                                         race_pars_file=race_pars_file_,
+                                                                         driver_initials=driver_initials_)
 
     # check parameters
     racesim_basic.src.check_pars.check_pars(sim_opts=sim_opts_, pars_in=pars_in_, use_plot=use_plot)

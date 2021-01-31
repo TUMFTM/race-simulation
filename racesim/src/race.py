@@ -118,7 +118,9 @@ class Race(MonteCarlo, RaceAnalysis):
 
         else:
             self.vse = VSE(vse_paths=vse_paths,
-                           vse_pars=vse_pars)
+                           vse_pars=vse_pars,
+                           location=track_pars["name"],
+                           ref_driver=monte_carlo_pars["ref_driver"])
 
         # --------------------------------------------------------------------------------------------------------------
         # INITIALIZE RACE OBJECT ---------------------------------------------------------------------------------------

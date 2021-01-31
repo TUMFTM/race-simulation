@@ -291,14 +291,10 @@ class RaceSimulation(tf_agents.environments.py_environment.PyEnvironment):
             self.pars_in['vse_pars']['vse_type'][driver] = self.vse_type
 
         # choose random driver for current training episode
-        self.driver_initials = random.choice([driver for driver in self.pars_in['driver_pars']])
+        self.driver_initials = random.choice([initials for initials in self.pars_in["race_pars"]["participants"]])
 
         # set reinforcement driver for the training
         self.pars_in['vse_pars']['vse_type'][self.driver_initials] = 'reinforcement_training'
-
-        # set the accident probability of this driver and the failure probability of his team to zero
-        self.pars_in['driver_pars'][self.driver_initials]['p_accident'] = 0.0
-        self.pars_in['car_pars'][self.pars_in['driver_pars'][self.driver_initials]['team']]['p_failure'] = 0.0
 
         # clear FCY phases and retirements from the parameters such that they are created randomly
         self.pars_in['event_pars']['fcy_data']['phases'] = []
@@ -319,6 +315,11 @@ class RaceSimulation(tf_agents.environments.py_environment.PyEnvironment):
                                                           create_rand_events=sim_opts["create_rand_events"],
                                                           monte_carlo_pars=self.pars_in["monte_carlo_pars"],
                                                           event_pars=self.pars_in["event_pars"])
+
+        # remove possible retirements for currently trained driver (for the training)
+        idx_cur_driver = next((idx for idx, driver in enumerate(race.drivers_list)
+                               if driver.initials == self.driver_initials), None)
+        race.retire_data['retirements'][idx_cur_driver] = None
 
         return race
 
