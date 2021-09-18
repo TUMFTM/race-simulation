@@ -177,6 +177,7 @@ journal = {Applied Sciences}}
 ```
 
 # Related open-source repositories
+* Time-discrete race simulator: https://github.com/heilmeiera/time-discrete-race-simulator
 * Lap time simulation: https://github.com/TUMFTM/laptime-simulation
 * Race track database: https://github.com/TUMFTM/racetrack-database
 * Formula 1 timing database: https://github.com/TUMFTM/f1-timing-database
