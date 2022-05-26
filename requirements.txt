@@ -5,7 +5,7 @@ scipy==1.4.1
 # required in opt_strategy_basic
 cvxpy==1.1.7
 # required for VSE (supervised and reinforcement training and inferencing)
-tensorflow==2.2.0
+tensorflow==2.7.2
 # required for VSE (reinforcement training)
 tensorflow-probability==0.10.1
 tf-agents==0.5.0
